@@ -289,13 +289,25 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-def serve(index_path, host="127.0.0.1", port=8000, open_browser=True, **opts):
+def serve(index_path, host="127.0.0.1", port=8123, open_browser=True, **opts):
     """Start the browser UI. Blocks until Ctrl+C."""
     import webbrowser
 
     app = VeriRAGApp(index_path, **opts)
     Handler.app = app
-    httpd = ThreadingHTTPServer((host, port), Handler)
+
+    httpd = None
+    last_err = None
+    for candidate in range(port, port + 20):
+        try:
+            httpd = ThreadingHTTPServer((host, candidate), Handler)
+            port = candidate
+            break
+        except OSError as exc:
+            last_err = exc
+    if httpd is None:
+        raise SystemExit(f"could not bind any port from {port} to {port + 19}: {last_err}")
+
     url = f"http://{host}:{port}/"
     print(f"VeriRAG UI: {url}  (index: {index_path})")
     print("Ctrl+C to stop.")

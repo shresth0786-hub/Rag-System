@@ -467,7 +467,7 @@ def build_parser():
     wb = sub.add_parser("web", help="browser UI: local web app for queries, claims, index inspection")
     wb.add_argument("--index", default="output/index.pkl")
     wb.add_argument("--host", default="127.0.0.1")
-    wb.add_argument("--port", type=int, default=8000)
+    wb.add_argument("--port", type=int, default=8123, help="start here, auto-increments if blocked")
     wb.add_argument("--method", choices=["tfidf", "bm25"], default="tfidf")
     wb.add_argument("--champions", action="store_true")
     wb.add_argument("--high", type=float, default=0.20)
