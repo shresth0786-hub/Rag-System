@@ -7,7 +7,8 @@ from the repo root; expected outputs are noted so you can cut/retake if a run di
 Tip: run `python -m verirag` through a prompt so the command itself is visible on camera.
 
 Tip: run `python -m verirag repl` for an interactive prompt (type `s:`/`b:`/`t:`/`v:` prefixes
-or just paste a claim) — perfect for live on-camera tinkering between the scripted takes below.
+or just paste a claim), or `python -m verirag web` for the browser UI — perfect for live on-camera
+tinkering between the scripted takes below.
 
 ---
 

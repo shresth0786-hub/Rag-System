@@ -208,6 +208,22 @@ def cmd_eval(args):
     run_retrieval_eval(args)
 
 
+def cmd_web(args):
+    from .web import serve
+
+    serve(
+        args.index,
+        host=args.host,
+        port=args.port,
+        open_browser=not args.no_open,
+        method=args.method,
+        champions=args.champions,
+        high=args.high,
+        low=args.low,
+        novelty_weight=args.novelty_weight,
+    )
+
+
 REPL_VERBS = {
     "search": "search", "s": "search",
     "bool": "bool", "b": "bool",
@@ -447,6 +463,18 @@ def build_parser():
     rp.add_argument("--prox-window", type=int, default=30)
     rp.add_argument("--static", type=float, default=0.0)
     rp.set_defaults(func=cmd_repl)
+
+    wb = sub.add_parser("web", help="browser UI: local web app for queries, claims, index inspection")
+    wb.add_argument("--index", default="output/index.pkl")
+    wb.add_argument("--host", default="127.0.0.1")
+    wb.add_argument("--port", type=int, default=8000)
+    wb.add_argument("--method", choices=["tfidf", "bm25"], default="tfidf")
+    wb.add_argument("--champions", action="store_true")
+    wb.add_argument("--high", type=float, default=0.20)
+    wb.add_argument("--low", type=float, default=0.12)
+    wb.add_argument("--novelty-weight", type=float, default=0.6)
+    wb.add_argument("--no-open", action="store_true", help="do not auto-open the browser")
+    wb.set_defaults(func=cmd_web)
 
     return p
 

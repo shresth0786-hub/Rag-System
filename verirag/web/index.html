@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VeriRAG — Inspectable RAG with citation verification</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>VeriRAG</h1>
+      <p class="tagline">inspectable tf-idf RAG with claim-level citation verification</p>
+    </div>
+    <div id="stats" class="stats" title="index statistics">
+      <span id="stat-chunks">—</span> chunks · <span id="stat-terms">—</span> terms ·
+      <span id="stat-docs">—</span> docs
+    </div>
+  </header>
+
+  <nav id="tabs" class="tabs">
+    <button class="tab active" data-tab="ask">Ask (RAG)</button>
+    <button class="tab" data-tab="search">Search</button>
+    <button class="tab" data-tab="bool">Boolean</button>
+    <button class="tab" data-tab="term">Term</button>
+    <button class="tab" data-tab="verify">Verify claim</button>
+  </nav>
+
+  <main>
+    <section id="panel-ask" class="panel active">
+      <p class="hint">Ask a question in natural language. Retrieved evidence chunks are combined into a
+        cited answer; every generated sentence is checked against its cited chunk before it is shown.</p>
+      <div class="examples">
+        <span>examples:</span>
+        <button class="chip" data-target="ask" data-value="metformin reduces mortality in type 2 diabetes patients">metformin reduces mortality…</button>
+        <button class="chip" data-target="ask" data-value="antibiotic resistance in gram-negative bacteria">antibiotic resistance…</button>
+        <button class="chip" data-target="ask" data-value="does vitamin D prevent infections">vitamin D vs infection</button>
+      </div>
+    </section>
+
+    <section id="panel-search" class="panel">
+      <p class="hint">Vector-space cosine retrieval. Toggle <em>explain</em> to see query analysis and the
+        base / proximity / static score components for every hit.</p>
+      <div class="examples">
+        <span>examples:</span>
+        <button class="chip" data-target="search" data-value="soil bacteria genes">soil bacteria genes</button>
+        <button class="chip" data-target="search" data-value="CRISPR immune system">CRISPR immune system</button>
+      </div>
+    </section>
+
+    <section id="panel-bool" class="panel">
+      <p class="hint">Boolean / phrase / zone queries with a live query-processor trace
+        (df-ordered optimisation, postings, skip-list intersection).</p>
+      <div class="examples">
+        <span>examples:</span>
+        <button class="chip" data-target="bool" data-value="&quot;antibiotic resistance&quot; AND bacteria">&quot;antibiotic resistance&quot; AND bacteria</button>
+        <button class="chip" data-target="bool" data-value="title:CRISPR OR title:CRISPR-Cas">title:CRISPR OR title:CRISPR-Cas</button>
+      </div>
+    </section>
+
+    <section id="panel-term" class="panel">
+      <p class="hint">Look up one term in the inverted index: document frequency, idf, a sample of the
+        postings list, and skip-list pointers.</p>
+      <div class="examples">
+        <span>examples:</span>
+        <button class="chip" data-target="term" data-value="resist">resist</button>
+        <button class="chip" data-target="term" data-value="metformin">metformin</button>
+        <button class="chip" data-target="term" data-value="crispr">crispr</button>
+      </div>
+    </section>
+
+    <section id="panel-verify" class="panel">
+      <p class="hint">Score one claim against retrieved chunks: cosine similarity to the chunk, a novelty
+        penalty for terms that never appear in it, and a final <strong>support</strong> score with verdict.</p>
+      <div class="examples">
+        <span>examples:</span>
+        <button class="chip" data-target="verify" data-value="probiotics prevent antibiotic-associated diarrhea">probiotics prevent antibiotic-associated diarrhea</button>
+        <button class="chip" data-target="verify" data-value="smoking causes lung cancer">smoking causes lung cancer</button>
+      </div>
+    </section>
+
+    <div class="inputbar">
+      <input id="input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="type a query or claim, then press Enter…">
+      <div class="options">
+        <label>k <input id="opt-k" type="number" min="1" max="20" value="5"></label>
+        <label>sentences <input id="opt-sentences" type="number" min="1" max="6" value="3"></label>
+        <label><input id="opt-explain" type="checkbox"> explain</label>
+      </div>
+      <button id="go" class="go">Run</button>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+    <div id="results" class="results"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
