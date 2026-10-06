@@ -2,6 +2,9 @@
 
 CSD358 IR Hackathon 2026 — Track T1 (RAG + trustworthy answers).
 
+**Repository:** https://github.com/shresth0786-hub/Rag-System
+**Demo video:** unlisted — link to be added here after upload (record per `VIDEO.md`)
+
 VeriRAG is a retrieval-augmented generation system built from scratch on top of a
 classical IR engine: an inverted index with tf-idf/BM25 scoring, a Boolean/phrase
 query processor with skip-list optimization, and a citation verifier that checks
