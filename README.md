@@ -47,6 +47,7 @@ python -m verirag build                  # chunk corpus + build output/index.pkl
 Everything is inspectable:
 
 ```powershell
+python -m verirag repl                          # interactive: type your own queries
 python -m verirag term resist            # dictionary entry: df, idf, postings, skip pointers
 python -m verirag bool '\"antibiotic resistance\" AND bacteria'   # query-processor trace (PowerShell escaping)
 python -m verirag bool 'title:CRISPR AND NOT review'              # zone + NOT, 54 matches

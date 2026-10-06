@@ -208,6 +208,139 @@ def cmd_eval(args):
     run_retrieval_eval(args)
 
 
+REPL_VERBS = {
+    "search": "search", "s": "search",
+    "bool": "bool", "b": "bool",
+    "term": "term", "t": "term",
+    "verify": "verify", "v": "verify",
+    "ask": "ask", "a": "ask",
+}
+
+
+def cmd_repl(args):
+    import sys as _sys
+
+    _sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    from .retrieve import search as _search
+    from .scoring import analyze_query as _analyze
+    from .verifier import doc_cosine as _doc_cos
+    from .verifier import novelty_penalty as _novel
+    from .verifier import support_score as _support
+
+    index = _load(args)
+    pipe = Pipeline.load(args.index)
+    k, explain, sents = args.k, False, args.sentences
+    print(f"\nVeriRAG interactive  (index: {args.index}, {index.N} chunks)")
+    print("Bare text      -> ask (RAG answer + verdict)")
+    print("s: / search:   -> ranked search      b: / bool:   -> boolean trace")
+    print("t: / term:     -> postings           v: / verify: -> support score")
+    print("options: k N   sents N   explain on/off   help   quit\n")
+    while True:
+        try:
+            line = input("verirag> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+        if not line:
+            continue
+        low = line.lower()
+        if low in ("quit", "exit", "q"):
+            return
+        if low == "help":
+            print("s: TEXT | b: QUERY | t: WORD | v: CLAIM | a: TEXT | k N | sents N | explain on/off | quit")
+            continue
+        parts = line.split(None, 1)
+        head = parts[0].lower().rstrip(":")
+        rest = parts[1].strip() if len(parts) > 1 else ""
+        if head == "k":
+            try:
+                k = int(rest)
+            except ValueError:
+                print("k needs an integer")
+            continue
+        if head in ("sents", "sentences"):
+            try:
+                sents = int(rest)
+            except ValueError:
+                print("sents needs an integer")
+            continue
+        if head == "explain":
+            explain = rest.startswith("on") or rest in ("1", "true")
+            print("explain =", explain)
+            continue
+        mode = REPL_VERBS.get(head)
+        if mode is None:
+            mode, text = "ask", line
+        elif rest:
+            text = rest
+        else:
+            print("missing text after %r" % head)
+            continue
+
+        if mode == "ask":
+            result = pipe.ask(
+                text, k=k, generator="extractive", max_sentences=sents,
+                method=args.method, use_champions=args.champions,
+                proximity_weight=args.proximity, proximity_window=args.prox_window,
+                static_weight=args.static, eliminate_threshold=args.eliminate,
+                explain=explain,
+            )
+            print(f"\nquery: {text}")
+            if explain and "trace" in result:
+                print("terms: %s  eliminated=%s" % (result["trace"]["query_terms"], result["trace"]["eliminated"]))
+            _print_answer(result, show_text=False)
+        elif mode == "verify":
+            terms = _analyze(text, stemming=index.stemming,
+                             remove_stopwords=index.remove_stopwords,
+                             keep_negators=index.keep_negators)
+            ranked = _search(index, text, k=k, explain=False)
+            print(f"\nclaim: {text}")
+            print("terms: %s" % terms)
+            print("  rank  chunk       cos     novel  support  title")
+            best = 0.0
+            for rank, r in enumerate(ranked, 1):
+                cos = _doc_cos(index, terms, r.doc_id)
+                novel, pen = _novel(index, terms, r.doc_id)
+                support = _support(cos, pen, 0.6)
+                best = max(best, support)
+                doc = index.docs[r.doc_id]
+                print("  %4d %-12s %.4f  %.3f  %.4f  %s" % (rank, r.doc_id, cos, pen, support, doc.title[:40]))
+                if novel:
+                    print("       novel terms: %s" % novel[:8])
+            verdict = "SUPPORTED" if best >= 0.20 else ("WEAK" if best >= 0.12 else "UNSUPPORTED")
+            print("best support=%.4f -> verdict: %s" % (best, verdict))
+        elif mode == "search":
+            result = _search(index, text, k=k, method=args.method,
+                             use_champions=args.champions,
+                             eliminate_threshold=args.eliminate,
+                             proximity_weight=args.proximity,
+                             proximity_window=args.prox_window,
+                             static_weight=args.static, explain=explain)
+            ranked, trace = (result if explain else (result, None))
+            print(f"\nquery: {text}")
+            if trace is not None:
+                print("terms: %s  candidates=%d  eliminated=%s" % (trace.query_terms, trace.candidates, trace.eliminated))
+            for i, r in enumerate(ranked, 1):
+                doc = index.docs[r.doc_id]
+                print("  %2d. %.4f  [%s]  %s  (base=%.4f prox=%.3f g=%.3f)"
+                      % (i, r.score, r.doc_id, doc.title[:45], r.base, r.proximity, r.g))
+        elif mode == "bool":
+            tr = BooleanTrace()
+            doc_ids = run_boolean(index, text, tr)
+            print(f"\nquery: {text}\nmatches: {len(doc_ids)}")
+            for step in tr.steps:
+                print("  [%s] size=%d  %s" % (step["label"], step["size"], step["detail"]))
+            for doc_id in doc_ids[: k]:
+                print("  [%s] %s" % (doc_id, index.docs[doc_id].title[:50]))
+        elif mode == "term":
+            info = index.describe_term(text, limit=6)
+            print("term: %s  df=%s  idf=%.4f" % (info["term"], info["df"], info["idf"]))
+            for p in info["postings_sample"]:
+                print("   %s" % p)
+            if info["skips"]:
+                print("   skip pointers: %s" % info["skips"])
+
+
 def cmd_eval_verify(args):
     from .evaluate import run_verifier_eval
 
@@ -302,6 +435,18 @@ def build_parser():
     ev.add_argument("--limit", type=int, default=0)
     ev.add_argument("--charts", action="store_true")
     ev.set_defaults(func=cmd_eval_verify)
+
+    rp = sub.add_parser("repl", help="interactive prompt: type queries, claims or commands")
+    rp.add_argument("--index", default="output/index.pkl")
+    rp.add_argument("-k", type=int, default=5)
+    rp.add_argument("--sentences", type=int, default=3)
+    rp.add_argument("--method", choices=["tfidf", "bm25"], default="tfidf")
+    rp.add_argument("--champions", action="store_true")
+    rp.add_argument("--eliminate", type=float, default=1.0)
+    rp.add_argument("--proximity", type=float, default=0.5)
+    rp.add_argument("--prox-window", type=int, default=30)
+    rp.add_argument("--static", type=float, default=0.0)
+    rp.set_defaults(func=cmd_repl)
 
     return p
 
