@@ -1,0 +1,6 @@
+# VeriRAG runs on the Python standard library only (Python >= 3.10).
+# The dependencies below are for development, evaluation charts and
+# validation scripts only.
+
+matplotlib>=3.7   # evaluation charts (python -m verirag eval --charts)
+nltk>=3.8         # validates our from-scratch Porter stemmer (scripts/check_stemmer.py)

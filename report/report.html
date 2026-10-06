@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VeriRAG — CSD358 IR Hackathon Report</title>
+<style>
+  @page { size: A4; margin: 12mm 13mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, "Times New Roman", serif; font-size: 9.4pt; line-height: 1.32; color: #111; margin: 0; }
+  h1 { font-size: 17pt; margin: 0 0 2px; }
+  h2 { font-size: 11.5pt; margin: 12px 0 4px; border-bottom: 1px solid #999; padding-bottom: 1px; }
+  h3 { font-size: 10pt; margin: 8px 0 3px; }
+  p { margin: 4px 0; text-align: justify; }
+  .meta { font-size: 9pt; color: #444; margin-bottom: 6px; }
+  .abstract { background: #f4f4f4; padding: 6px 9px; margin: 6px 0 8px; font-size: 9pt; }
+  table { border-collapse: collapse; width: 100%; font-size: 8.6pt; margin: 5px 0; }
+  th, td { border: 1px solid #aaa; padding: 2px 5px; text-align: right; }
+  th { background: #ececec; text-align: center; }
+  td:first-child, th:first-child { text-align: left; }
+  img.chart { width: 100%; max-height: 175px; object-fit: contain; margin: 4px 0; }
+  .two { display: flex; gap: 10px; }
+  .two > div { flex: 1; }
+  .note { font-size: 8.4pt; color: #555; margin-top: 1px; }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 8.6pt; }
+  pre { background: #f6f6f6; border: 1px solid #ddd; padding: 5px 7px; font-size: 8.1pt; overflow: hidden; white-space: pre-wrap; margin: 4px 0; }
+  ul, ol { margin: 3px 0 3px 18px; padding: 0; }
+  li { margin: 1.5px 0; text-align: justify; }
+  .small { font-size: 8.4pt; color: #444; }
+  .cols2 { column-count: 2; column-gap: 14px; }
+  .footer-note { font-size: 8pt; color: #666; border-top: 1px solid #999; margin-top: 8px; padding-top: 3px; }
+</style>
+</head>
+<body>
+
+<h1>VeriRAG: an inspectable tf-idf RAG pipeline with claim-level citation verification</h1>
+<div class="meta">SHRESTH (team size 1) &middot; CSD358 Information Retrieval Hackathon 2026 &middot; Track T1: RAG + trustworthy answers &middot; Code: <span class="mono">github.com/&lt;your-handle&gt;/verirag</span> &middot; Demo video: 5&ndash;7 min (link in README)</div>
+
+<div class="abstract">
+<b>Abstract.</b> We present VeriRAG, a retrieval-augmented generation system built
+entirely on a from-scratch classical IR engine: an inverted index with zone-weighted tf-idf and BM25
+scoring, a Boolean/phrase query processor with skip-list optimization, and a citation verifier that
+scores every generated sentence against the chunk it cites. The system runs on the Python standard
+library over BEIR SciFact (5,183 abstracts). On the 200-claim test split our full configuration
+reaches nDCG@10&nbsp;=&nbsp;<b>0.656</b> (plain tf-idf baseline 0.601; BM25 0.653), and the citation
+verifier reaches F1&nbsp;=&nbsp;<b>0.664</b> for SUPPORT detection versus 0.579 for a cosine-only
+baseline and 0.512 for Jaccard overlap &mdash; trading 16 recall points for 15 precision points and
+lifting accuracy from 0.43 to 0.67. The extractive answer includes a gold evidence sentence in <b>57.5%</b> of cases versus 10.3%
+for the first-sentence baseline. All numbers are reproducible with two CLI commands.
+</div>
+
+<h2>1. Problem, dataset and contributions</h2>
+<p>Track T1 asks for a RAG system that produces <i>trustworthy</i> answers: every generated sentence must
+cite retrieved evidence, and the system must be able to check its own citations. We deliberately avoid
+embeddings and vector databases so that every score a user sees can be explained by classical IR
+concepts (document frequency, zone weights, term proximity, cosine similarity).</p>
+<p><b>Dataset.</b> BEIR <b>SciFact</b>: 5,183 scientific abstracts, 300 test claims, each with gold
+evidence documents and sentence-level evidence labels (SUPPORT / CONTRADICT; unlabeled claims treated as
+NEI). We split the 300 judged claims deterministically &mdash; sorted qids, <b>first 100 = dev</b>
+(all hyper-parameter tuning), <b>remaining 200 = test</b> (reporting only). Nothing was tuned on test.</p>
+<p><b>Contributions.</b> (i)&nbsp;a complete, inspectable IR engine written from scratch (tokenizer,
+Porter stemmer, inverted index with skip pointers and champion lists, Boolean/phrase/zone parser,
+term-at-a-time ranking); (ii)&nbsp;a chunking study of the classic &ldquo;what is a document?&rdquo;
+decision under both retrieval and citation-granularity objectives; (iii)&nbsp;a lightweight
+<i>novelty penalty</i> for citation verification that demotes answers whose claim terms are absent from
+the cited chunk, evaluated against Jaccard and cosine baselines on SciFact labels; (iv)&nbsp;a
+dev/test ablation ladder quantifying each IR component.</p>
+
+<h2>2. System overview</h2>
+<svg viewBox="0 0 760 208" width="100%" style="max-height:215px" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial" font-size="11">
+  <defs>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#333"/></marker>
+  </defs>
+  <g fill="#eef3fa" stroke="#44608a" stroke-width="1.2">
+    <rect x="4" y="18" width="118" height="46" rx="4"/>
+    <rect x="166" y="18" width="132" height="46" rx="4"/>
+    <rect x="342" y="18" width="150" height="46" rx="4"/>
+    <rect x="546" y="18" width="128" height="46" rx="4"/>
+    <rect x="546" y="96" width="128" height="46" rx="4"/>
+    <rect x="342" y="96" width="150" height="46" rx="4"/>
+    <rect x="166" y="96" width="132" height="46" rx="4"/>
+    <rect x="4" y="96" width="118" height="46" rx="4"/>
+  </g>
+  <g fill="#fdf3e3" stroke="#a9761e" stroke-width="1.2">
+    <rect x="342" y="168" width="150" height="34" rx="4"/>
+  </g>
+  <g fill="#111" font-size="11.5" text-anchor="middle">
+    <text x="63" y="37">SciFact corpus</text><text x="63" y="52" font-size="10" fill="#555">5,183 docs</text>
+    <text x="232" y="34">chunker</text><text x="232" y="48" font-size="10" fill="#555">3 sentences / step 2</text>
+    <text x="417" y="34">inverted index</text><text x="417" y="48" font-size="10" fill="#555">lnc/ltc &middot; zones &middot; skips</text>
+    <text x="610" y="37">query parser</text><text x="610" y="52" font-size="10" fill="#555">AND OR NOT " " title:</text>
+    <text x="610" y="115">ranked retrieval</text><text x="610" y="130" font-size="10" fill="#555">tf-idf + proximity</text>
+    <text x="417" y="114">answer generator</text><text x="417" y="129" font-size="10" fill="#555">extractive / LLM</text>
+    <text x="232" y="114">citation verifier</text><text x="232" y="129" font-size="10" fill="#555">cos &times; (1 &minus; 0.6&middot;novelty)</text>
+    <text x="63" y="114">answer + verdict</text><text x="63" y="129" font-size="10" fill="#555">cited, SUPPORTED</text>
+    <text x="417" y="189" font-size="11" fill="#7a5210">dev split (100 claims): tunes all &#952;</text>
+  </g>
+  <g stroke="#333" stroke-width="1.4" fill="none" marker-end="url(#ar)">
+    <path d="M122,41 H164"/><path d="M298,41 H340"/><path d="M492,41 H544"/>
+    <path d="M610,64 V94"/><path d="M546,119 H494"/><path d="M342,119 H300"/><path d="M166,119 H124"/>
+    <path d="M417,142 V166"/>
+  </g>
+</svg>
+
+<h3>2.1 Indexing (verirag/text.py, index.py, scoring.py)</h3>
+<ul>
+<li><b>Tokenizer &amp; stemmer.</b> Unicode-normalized tokenization; stop-word removal that
+<i>keeps negators</i> (&ldquo;not/no/never&rdquo;) because negation flips entailment for the verifier.
+The Porter stemmer is implemented from scratch (<code>text.py</code>) and validated against NLTK's
+<i>ORIGINAL_ALGORITHM</i> mode over all 29,699 distinct corpus terms: 18 mismatches remain
+(99.94% agreement) &mdash; 12 involve non-ASCII characters (&#305;-ligatures, &micro;, &szlig;)
+where our tokenizer normalizes Unicode first, and 6 are plain-English edge cases (e.g. <i>achilles</i>,
+<i>organelle</i>) where the 1980 reference implementation's rules differ; none of the 18 appear in
+any of the 300 benchmark claims.</li>
+<li><b>Zones.</b> Title and body terms are separated by a posting-position gap
+(TITLE_GAP&nbsp;=&nbsp;1000), so zone weighting and phrase search share one posting list. Title terms
+receive an extra weight &#955;&nbsp;=&nbsp;2.0 (dev-validated, see A2).</li>
+<li><b>Weighting.</b> Documents use lnc (log-tf, idf-free, cosine-normalized); queries use ltc
+(idf-weighted, normalized). A BM25 variant (k1,&nbsp;b configurable) shares the same postings.
+Skip pointers are built at index time for lists &gt; 128 entries; champion lists (top-50 by per-term
+impact) support a fast ranking mode.</li>
+<li><b>Static quality g(d).</b> A query-independent score from idf-weighted term density (body + title),
+an instantiation of query-independent priors. As the ablation shows, dev tuning selected
+&#952;&nbsp;=&nbsp;0.0 &mdash; the feature is retained but honestly reported as neutral on SciFact.</li>
+</ul>
+
+<h3>2.2 Query processing and ranking (query.py, retrieve.py)</h3>
+<ul>
+<li><b>Parser.</b> Recursive-descent parser for Boolean queries with parentheses, phrases
+(<code>"..."</code>), field restrictions (<code>title:</code>, <code>body:</code>), AND/OR/NOT;
+positional intersection verifies phrase adjacency. Execution produces a <i>query-processor trace</i>
+(e.g. <i>&ldquo;df-ordered AND: rarest term first, skip to B while 138 &gt; 41&rdquo;</i>) shown by
+<code>python -m verirag bool</code>.</li>
+<li><b>Ranked retrieval.</b> Term-at-a-time scoring with index elimination (documents whose accumulated
+score cannot reach the current k-th threshold stop being extended), a min-heap top-k, and a
+multiplicative proximity re-rank: <span class="mono">score = base &times; (1 + w&#960;) + &#951;g(d)</span>,
+where &#960;&nbsp;=&nbsp;close pairs of query terms within a 30-token window over <i>all</i>&nbsp;C(q,2)
+query-term pairs (so partial matches cannot score &#960;&nbsp;=&nbsp;1). Dev tuning selected
+w&nbsp;=&nbsp;0.5, window&nbsp;=&nbsp;30.</li>
+</ul>
+
+<h3>2.3 Chunking &mdash; the &ldquo;what is a document?&rdquo; decision (chunker.py)</h3>
+<p>We index chunks but evaluate and cite at parent-document granularity. Four strategies were compared
+on the test split (final ranking parameters fixed from dev):</p>
+<table>
+<tr><th>chunking strategy</th><th>chunks</th><th>nDCG@10</th><th>P@10</th><th>R@100</th><th>MRR@10</th></tr>
+<tr><td>whole: 1 chunk per document</td><td>5,183</td><td><b>0.6732</b></td><td><b>0.0885</b></td><td><b>0.9215</b></td><td><b>0.6286</b></td></tr>
+<tr><td>fixed: 120-token windows, 30 overlap</td><td>13,154</td><td>0.6606</td><td>0.0870</td><td>0.8965</td><td>0.6145</td></tr>
+<tr><td>sentence: 5 sentences, step 3</td><td>13,327</td><td>0.6657</td><td>0.0865</td><td>0.8940</td><td>0.6199</td></tr>
+<tr><td>sentence: 3 sentences, step 2 <span class="small">(chosen)</span></td><td>21,233</td><td>0.6553</td><td>0.0860</td><td>0.8815</td><td>0.6125</td></tr>
+</table>
+<p class="note">Whole documents win document-level retrieval (full tf-idf mass, no signal dilution)
+but cannot produce span-level citations. We accept a &minus;1.8&nbsp;nDCG cost for sentence-granular
+chunks because the whole purpose of Track&nbsp;T1 is <i>citable</i> evidence spans: the verifier and the
+evidence-recall metric operate on the cited chunk, not on a 400-token abstract. The fixed-window row
+shows the trade-off is about granularity, not about sentence boundaries specifically.</p>
+
+<h2>3. Generation and trustworthiness</h2>
+<p><b>Answers with citations.</b> The default generator is extractive and deterministic: sentences of
+retrieved chunks are scored by tf-idf similarity to the claim and re-selected with MMR
+(&#955;&nbsp;=&nbsp;0.7) for diversity; each emitted sentence carries its source chunk rank as a
+citation <span class="mono">[k]</span>. An OpenAI-compatible LLM generator (<code>--llm</code>) uses the
+same retrieved chunks as context and is verified by the same machinery; it is optional and not part of
+the reported tables.</p>
+<p><b>Citation verifier (verifier.py).</b> For each generated sentence <i>s</i> cited at rank <i>k</i>:</p>
+<pre>support(s, k) = min(1, cos(s, chunk_k) &times; (1 &minus; min(1, 0.6 &middot; novelty(s, chunk_k))))
+novelty(s, chunk_k) = &#931; idf(t) [t &#8712; terms(s) &#8713; chunk_k] / &#931; idf(t)</pre>
+<p>Cosine is computed directly from the inverted index (no document vectors are materialized). The
+<i>novelty penalty</i> down-weights sentences whose rare claim terms are lexically absent from the
+cited chunk &mdash; the classic symptom of an unfaithful citation. Two dev-tuned hyper-parameters
+(weight&nbsp;0.6, form&nbsp;=&nbsp;multiplicative, SUPPORT threshold&nbsp;=&nbsp;0.20, WEAK
+&#8805;&nbsp;0.12) were selected on the dev split by F1. A <i>citation-mismatch</i> flag is raised when
+a <i>different</i> retrieved chunk supports the sentence by &gt;0.10, even if the cited chunk passes.</p>
+
+<h2>4. Evaluation</h2>
+<p class="small">Protocol: all &#952; chosen on dev (100 claims); tables below are test-only
+(retrieval n&nbsp;=&nbsp;200, verifier n&nbsp;=&nbsp;214 claim&ndash;document items including CONTRADICT
+and NEI as negatives). Metrics: nDCG@10, P@k, R@100, MRR@10; verifier P/R/F1/accuracy for SUPPORT
+detection. Charts and CSVs are written by the CLI itself.</p>
+
+<h3>4.1 Retrieval: component ablation vs BM25</h3>
+<table>
+<tr><th>configuration</th><th>nDCG@10</th><th>P@5</th><th>P@10</th><th>R@100</th><th>MRR@10</th><th>ms/query</th></tr>
+<tr><td>A0 plain tf-idf (no stem, no zone)</td><td>0.6010</td><td>0.1410</td><td>0.0810</td><td>0.8515</td><td>0.5558</td><td>16.6</td></tr>
+<tr><td>A1 + Porter stemming</td><td>0.6522</td><td>0.1630</td><td>0.0865</td><td>0.8865</td><td>0.6044</td><td>35.7</td></tr>
+<tr><td>A2 + title zone weight (&#955;=2)</td><td><b>0.6561</b></td><td><b>0.1640</b></td><td><b>0.0870</b></td><td>0.8815</td><td>0.6083</td><td>26.9</td></tr>
+<tr><td>A3 + term proximity (w=0.5, win=30)</td><td>0.6553</td><td>0.1640</td><td>0.0860</td><td>0.8815</td><td><b>0.6125</b></td><td>64.9</td></tr>
+<tr><td>A4 + static quality g(d) [&#951;=0.0, dev-tuned]</td><td>0.6553</td><td>0.1640</td><td>0.0860</td><td>0.8815</td><td>0.6125</td><td>69.1</td></tr>
+<tr><td>A4 + champion lists (top-50)</td><td>0.6031</td><td>0.1360</td><td>0.0775</td><td>0.8049</td><td>0.5653</td><td><b>5.7</b></td></tr>
+<tr><td>BM25 (k1=1.5, b=0.75)</td><td>0.6517</td><td>0.1550</td><td>0.0870</td><td>0.9098</td><td>0.6075</td><td>30.7</td></tr>
+<tr><td>BM25 (k1=0.9, b=0.4)</td><td>0.6533</td><td>0.1550</td><td>0.0875</td><td>0.9085</td><td>0.6097</td><td>32.0</td></tr>
+</table>
+<div class="two">
+<div><img class="chart" src="../output/eval_retrieval.png" alt="retrieval ablation chart"></div>
+<div><img class="chart" src="../output/eval_verifier.png" alt="verifier chart"></div>
+</div>
+<p><b>Reading the table.</b> Stemming is the decisive component (+5.1 nDCG), title zones add +0.4;
+the full system (A2/A3) <b>matches or exceeds both BM25 variants</b> while remaining a plain tf-idf
+system. Proximity is neutral on nDCG but improves MRR (+0.004), i.e. it promotes the right document
+into rank&nbsp;1 more often &mdash; consistent with its design goal of rescuing exact phrase matches;
+it costs latency, so it is a tunable switch. Static quality g(d) was dev-tuned to zero &mdash; a
+genuine null result we report rather than hide. Champion lists deliver an <b>11&times; speed-up</b>
+(5.7&nbsp;ms vs 64.9&nbsp;ms per query) at &minus;5&nbsp;nDCG points: a classic efficiency/accuracy
+trade-off exposed as a CLI flag (<code>--champions</code>).</p>
+
+<h3>4.2 Citation verification vs baselines</h3>
+<div class="two">
+<div>
+<table>
+<tr><th>method</th><th>P</th><th>R</th><th>F1</th><th>acc</th></tr>
+<tr><td>Jaccard overlap (dev-tuned &#964;=0.05)</td><td>0.396</td><td>0.724</td><td>0.512</td><td>0.439</td></tr>
+<tr><td>cosine only (dev-tuned &#964;=0.15)</td><td>0.414</td><td>0.966</td><td>0.579</td><td>0.430</td></tr>
+<tr><td><b>VeriRAG: cos &times; (1 &minus; 0.6&middot;novelty)</b></td><td><b>0.565</b></td><td>0.805</td><td><b>0.664</b></td><td><b>0.668</b></td></tr>
+</table>
+<p class="note">Dev F1: ours 0.656 vs cosine 0.640 &mdash; the dev margin is small; the test gap
+(+0.085 F1) should be read with that caution.</p>
+</div>
+<div>
+<table>
+<tr><th>answer stage (n=87)</th><th>gold-sentence recall</th></tr>
+<tr><td>baseline: first sentence of top-1 chunk</td><td>0.103</td></tr>
+<tr><td><b>VeriRAG extractive answer (3 sentences)</b></td><td><b>0.575</b></td></tr>
+<tr><th>retrieval stage (n=137)</th><th>value</th></tr>
+<tr><td>hit@5 / hit@10</td><td>0.854 / 0.854</td></tr>
+<tr><td>MRR</td><td>0.705</td></tr>
+</table>
+</div>
+</div>
+<p><b>Reading the tables.</b> Cosine alone over-predicts SUPPORT (recall 0.966, precision 0.414,
+accuracy 0.430 &mdash; barely above the majority-class rate). The novelty penalty trades 16 recall
+points for 15 precision points and lifts <b>accuracy from 0.43 to 0.67</b>: the sentence must not only
+resemble the evidence, its rare terms must actually <i>occur</i> in the cited chunk. At the answer
+stage, the extractive generator puts a gold evidence sentence into its 3-sentence answer in 57.5% of
+cases vs 10.3% for the trivial baseline, on top of a retrieval stage with hit@5&nbsp;=&nbsp;0.85.</p>
+
+<h3>4.3 Cost</h3>
+<p>Index build (21,233 chunks, 26,319 terms): ~30&nbsp;s pure Python; pickled index load &lt;1&nbsp;s;
+A2 query latency 26.9&nbsp;ms/query single-threaded; the verifier re-scores citations in &lt;10&nbsp;ms
+per answer. No GPU, no native dependencies.</p>
+
+<h2>5. Limitations</h2>
+<ul>
+<li><b>Lexical only.</b> Stemming bridges morphological variants but not synonyms; SciFact's technical
+vocabulary partially masks this. Embeddings would help recall but were intentionally excluded to keep
+every score inspectable.</li>
+<li><b>Chunking trade-off.</b> Sentence chunks cost &minus;1.8 nDCG vs whole-doc indexing; the citation
+objectives justify it, but a hybrid (document ranking + chunk citations) is the obvious next step.</li>
+<li><b>Null result on static quality.</b> g(d) did not help on this corpus (&#951;&nbsp;tuned to 0);
+its benefit may appear on noisier, less curated collections.</li>
+<li><b>Verifier scope.</b> Evaluated on English scientific abstracts; the metric is lexical support,
+not full entailment &mdash; CONTRADICT vs NEI is not distinguished (both are negatives for SUPPORT
+detection). Dev F1 margin over cosine is small (0.016).</li>
+<li><b>LLM mode unmeasured.</b> The tables cover retrieval, extractive answers and verification; the
+<code>--llm</code> generator is functional but not benchmarked (no stable API budget during the hack).</li>
+<li><b>Dev size.</b> 100 tuning queries are few; we mitigate with a single deterministic split and
+report dev-vs-test gaps honestly.</li>
+</ul>
+
+<h2>6. Reproduction, work division, AI use</h2>
+<pre>python -m verirag build          # 30 s: chunk + index
+python -m verirag eval --charts  # ~2 min: ladder, BM25, dev sweeps, CSV + PNG
+python -m verirag eval-verify --charts  # ~20 s: verifier vs baselines, CSV + PNG
+python -m verirag ask "metformin reduces mortality in type 2 diabetes patients" --explain</pre>
+<p><b>Work division.</b> Team size 1: <b>SHRESTH</b> designed and implemented indexing, query
+processing, ranking, chunking, generation, verification, evaluation, the report and the demo video;
+owns every component explained in the video.</p>
+<p><b>AI-use declaration.</b> As permitted by the rules, AI assistants (opencode/ChatGPT) were used for
+code scaffolding, debugging, cross-checking the from-scratch Porter stemmer against NLTK, and editorial
+help on this report. Algorithmic decisions (zone weight, proximity formulation and window, novelty
+penalty and its form/weight, dev/test protocol, chunking choice) were designed, questioned and
+validated by the author; every reported number is produced by the two CLI commands above from a cold
+start, and no metric in this report was produced by hand.</p>
+
+<div class="footer-note">VeriRAG &middot; CSD358 IR Hackathon 2026 &middot; Track T1 &middot; stdlib-only Python &middot; full source and raw evaluation outputs in the repository (<span class="mono">output/eval_retrieval.csv</span>, <span class="mono">output/eval_verifier.csv</span>).</div>
+
+</body>
+</html>

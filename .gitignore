@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Rebuilt indexes (45 MB each; regenerate with: python -m verirag build)
+output/*.pkl
+
+# Keep output/eval_*.{csv,md,png} — they are report evidence and committed.
+
+# Editors / OS
+.vscode/
+Thumbs.db

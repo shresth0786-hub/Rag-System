@@ -1,0 +1,4 @@
+method,P(SUPPORT),R(SUPPORT),F1(SUPPORT),accuracy,n
+baseline: Jaccard overlap,0.39623,0.72414,0.5122,0.43925,214
+baseline: cosine only,0.41379,0.96552,0.57931,0.42991,214
+VeriRAG: cosine - novelty penalty,0.56452,0.8046,0.66351,0.66822,214
