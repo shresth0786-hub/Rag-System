@@ -10,3 +10,8 @@ output/*.pkl
 # Editors / OS
 .vscode/
 Thumbs.db
+
+# Submission artifacts (do not version the bundle or the raw screen recording)
+VeriRAG_CSD358_submission.zip
+*.mp4
+*.mov

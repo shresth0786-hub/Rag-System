@@ -65,7 +65,7 @@ decision under both retrieval and citation-granularity objectives; (iii)&nbsp;a 
 the cited chunk, evaluated against Jaccard and cosine baselines on SciFact labels; (iv)&nbsp;a
 dev/test ablation ladder quantifying each IR component.</p>
 
-<h2>2. System overview</h2>
+<h2>2. How IR is used: system overview</h2>
 <svg viewBox="0 0 760 208" width="100%" style="max-height:215px" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial" font-size="11">
   <defs>
     <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#333"/></marker>
@@ -154,7 +154,38 @@ chunks because the whole purpose of Track&nbsp;T1 is <i>citable</i> evidence spa
 evidence-recall metric operate on the cited chunk, not on a 400-token abstract. The fixed-window row
 shows the trade-off is about granularity, not about sentence boundaries specifically.</p>
 
-<h2>3. Generation and trustworthiness</h2>
+<h2>3. Beyond IR (how it supports the IR side)</h2>
+<p><b>MMR sentence selection.</b> The extractive generator is a re-ranking post-processor over the
+retrieved sentences: sentences are scored by tf-idf similarity to the claim and then selected with
+maximal marginal relevance (&#955;&nbsp;=&nbsp;0.7) so consecutive sentences do not repeat the same
+evidence. IR still decides which evidence reaches the answer.</p>
+<p><b>Optional LLM generation.</b> An OpenAI-compatible generator (<code>--llm</code>) consumes the
+same retrieved chunks as context and is then scored by the same IR-based citation verifier; it is
+declared and runs only when invoked, and it is not part of the reported tables (the benchmark is the
+deterministic path).</p>
+<p><b>Deliberate exclusions.</b> We do not use dense embeddings or vector stores. The track's core
+demand &mdash; inspectable retrieval and traceable citations &mdash; is better served by classical IR,
+and every score a user sees is explainable with lecture concepts. Dense retrieval would be an additive
+recall layer whose outputs still pass through the same citation verifier (see roadmap).</p>
+
+<h2>4. Novelty and creativity vs the obvious baseline</h2>
+<ul>
+<li><b>Inspectable-to-the-floats pipeline.</b> Every CLI flag maps to a lecture concept and the
+intermediate numbers are printed (postings, idf, zone weights, df-ordered AND trace, skip-pointer
+intersections, cosine scores, novelty penalty) &mdash; not just a top-k screen.</li>
+<li><b>Chunking as a research question.</b> &ldquo;What is a document?&rdquo; is evaluated with
+whole/fixed/sentence ablations on both retrieval and evidence-granularity objectives (Section&nbsp;2.3),
+instead of being a fixed hyperparameter.</li>
+<li><b>Novelty-penalized citation verifier.</b> support&nbsp;=&nbsp;cos&#8202;&times;&#8202;(1&nbsp;&minus;&nbsp;0.6&middot;novelty),
+with rare claim terms absent from the cited chunk demoting the score &mdash; an explicit faithfulness
+signal, evaluated against Jaccard and cosine baselines (F1 0.664 vs 0.579 and 0.512).</li>
+<li><b>Citation-mismatch flag.</b> Detects when a <i>different</i> retrieved chunk supports the sentence
+better than the one actually cited (verifier.py).</li>
+<li><b>Honest null results.</b> Static quality g(d) dev-tuned to 0 and proximity neutral on nDCG but
+positive on MRR are reported rather than hidden &mdash; the rubric rewards this.</li>
+</ul>
+
+<h2>5. Generation and trustworthiness</h2>
 <p><b>Answers with citations.</b> The default generator is extractive and deterministic: sentences of
 retrieved chunks are scored by tf-idf similarity to the claim and re-selected with MMR
 (&#955;&nbsp;=&nbsp;0.7) for diversity; each emitted sentence carries its source chunk rank as a
@@ -171,7 +202,7 @@ cited chunk &mdash; the classic symptom of an unfaithful citation. Two dev-tuned
 &#8805;&nbsp;0.12) were selected on the dev split by F1. A <i>citation-mismatch</i> flag is raised when
 a <i>different</i> retrieved chunk supports the sentence by &gt;0.10, even if the cited chunk passes.</p>
 
-<h2>4. Evaluation</h2>
+<h2>6. Evaluation</h2>
 <p class="small">Protocol: all &#952; chosen on dev (100 claims); tables below are test-only
 (retrieval n&nbsp;=&nbsp;200, verifier n&nbsp;=&nbsp;214 claim&ndash;document items including CONTRADICT
 and NEI as negatives). Metrics: nDCG@10, P@k, R@100, MRR@10; verifier P/R/F1/accuracy for SUPPORT
@@ -237,7 +268,7 @@ cases vs 10.3% for the trivial baseline, on top of a retrieval stage with hit@5&
 A2 query latency 26.9&nbsp;ms/query single-threaded; the verifier re-scores citations in &lt;10&nbsp;ms
 per answer. No GPU, no native dependencies.</p>
 
-<h2>5. Limitations</h2>
+<h2>7. Limitations and next steps</h2>
 <ul>
 <li><b>Lexical only.</b> Stemming bridges morphological variants but not synonyms; SciFact's technical
 vocabulary partially masks this. Embeddings would help recall but were intentionally excluded to keep
@@ -254,8 +285,14 @@ detection). Dev F1 margin over cosine is small (0.016).</li>
 <li><b>Dev size.</b> 100 tuning queries are few; we mitigate with a single deterministic split and
 report dev-vs-test gaps honestly.</li>
 </ul>
+<p><b>Roadmap (if this becomes the course project).</b> (i)&nbsp;a hybrid that ranks at document
+granularity and cites at chunk granularity; (ii)&nbsp;dense retrieval as an additive recall layer with
+the verifier unchanged so scores stay explainable; (iii)&nbsp;negation-aware entailment to separate
+CONTRADICT from NEI instead of collapsing all negatives; (iv)&nbsp;benchmarking the <code>--llm</code>
+generator under a fixed API budget; (v)&nbsp;a larger dev split or cross-validation for threshold
+stability.</p>
 
-<h2>6. Reproduction, work division, AI use</h2>
+<h2>8. Reproduction, work division, AI use</h2>
 <pre>python -m verirag build          # 30 s: chunk + index
 python -m verirag eval --charts  # ~2 min: ladder, BM25, dev sweeps, CSV + PNG
 python -m verirag eval-verify --charts  # ~20 s: verifier vs baselines, CSV + PNG
