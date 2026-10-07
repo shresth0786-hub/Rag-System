@@ -36,22 +36,22 @@
 <div class="meta">SHRESTH (team size 1) &middot; CSD358 Information Retrieval Hackathon 2026 &middot; Track T1: RAG + trustworthy answers &middot; Code: <a href="https://github.com/shresth0786-hub/Rag-System">github.com/shresth0786-hub/Rag-System</a> &middot; Demo video: 5&ndash;7 min, unlisted (link in README)</div>
 
 <div class="abstract">
-<b>Abstract.</b> We present VeriRAG, a retrieval-augmented generation system built
-entirely on a from-scratch classical IR engine: an inverted index with zone-weighted tf-idf and BM25
-scoring, a Boolean/phrase query processor with skip-list optimization, and a citation verifier that
-scores every generated sentence against the chunk it cites. The system runs on the Python standard
-library over BEIR SciFact (5,183 abstracts). On the 200-claim test split our full configuration
-reaches nDCG@10&nbsp;=&nbsp;<b>0.656</b> (plain tf-idf baseline 0.601; BM25 0.653), and the citation
-verifier reaches F1&nbsp;=&nbsp;<b>0.664</b> for SUPPORT detection versus 0.579 for a cosine-only
-baseline and 0.512 for Jaccard overlap &mdash; trading 16 recall points for 15 precision points and
-lifting accuracy from 0.43 to 0.67. The extractive answer includes a gold evidence sentence in <b>57.5%</b> of cases versus 10.3%
-for the first-sentence baseline. All numbers are reproducible with two CLI commands.
+<b>Abstract.</b> VeriRAG is a retrieval-augmented generation system built on a from-scratch classical
+IR engine: an inverted index with zone-weighted tf-idf and BM25 scoring, a Boolean and phrase query
+processor with skip-list optimization, and a citation verifier that scores every generated sentence
+against the chunk it cites. It runs on the Python standard library over BEIR SciFact (5,183 abstracts).
+On the 200-claim test split the full configuration reaches nDCG@10&nbsp;=&nbsp;<b>0.656</b> (plain
+tf-idf baseline 0.601, BM25 0.653); the citation verifier reaches F1&nbsp;=&nbsp;<b>0.664</b> for
+SUPPORT detection versus 0.579 for a cosine-only baseline and 0.512 for Jaccard overlap, gaining 15
+precision points at a cost of 16 recall points and raising accuracy from 0.43 to 0.67. The extractive
+answer includes a gold evidence sentence in <b>57.5%</b> of cases versus 10.3% for the
+first-sentence baseline. All numbers are reproducible with two CLI commands.
 </div>
 
 <h2>1. Problem, dataset and contributions</h2>
 <p>Track T1 asks for a RAG system that produces <i>trustworthy</i> answers: every generated sentence must
-cite retrieved evidence, and the system must be able to check its own citations. We deliberately avoid
-embeddings and vector databases so that every score a user sees can be explained by classical IR
+cite retrieved evidence, and the system must be able to check its own citations. Embeddings and vector
+databases are avoided so that every score a user sees can be explained with classical IR
 concepts (document frequency, zone weights, term proximity, cosine similarity).</p>
 <p><b>Dataset.</b> BEIR <b>SciFact</b>: 5,183 scientific abstracts, 300 test claims, each with gold
 evidence documents and sentence-level evidence labels (SUPPORT / CONTRADICT; unlabeled claims treated as
@@ -163,16 +163,17 @@ evidence. IR still decides which evidence reaches the answer.</p>
 same retrieved chunks as context and is then scored by the same IR-based citation verifier; it is
 declared and runs only when invoked, and it is not part of the reported tables (the benchmark is the
 deterministic path).</p>
-<p><b>Deliberate exclusions.</b> We do not use dense embeddings or vector stores. The track's core
-demand &mdash; inspectable retrieval and traceable citations &mdash; is better served by classical IR,
-and every score a user sees is explainable with lecture concepts. Dense retrieval would be an additive
-recall layer whose outputs still pass through the same citation verifier (see roadmap).</p>
+<p><b>Exclusions.</b> No dense embeddings or vector stores are used. The track requires inspectable
+retrieval and traceable citations, and classical IR serves that better here; every score a user sees
+can be explained with lecture concepts. Dense retrieval would only add a recall layer on top, with
+outputs still passing through the same citation verifier (see roadmap).</p>
 
 <h2>4. Novelty and creativity vs the obvious baseline</h2>
 <ul>
-<li><b>Inspectable-to-the-floats pipeline.</b> Every CLI flag maps to a lecture concept and the
-intermediate numbers are printed (postings, idf, zone weights, df-ordered AND trace, skip-pointer
-intersections, cosine scores, novelty penalty) &mdash; not just a top-k screen.</li>
+<li><b>Transparent output.</b> The CLI prints the intermediate values (postings, idf, zone weights,
+df-ordered AND trace, skip-pointer intersections, cosine scores, novelty penalty), not just a final
+top-k list. Each flag maps to a known IR concept (champion lists, index elimination, skip pointers,
+zones).</li>
 <li><b>Chunking as a research question.</b> &ldquo;What is a document?&rdquo; is evaluated with
 whole/fixed/sentence ablations on both retrieval and evidence-granularity objectives (Section&nbsp;2.3),
 instead of being a fixed hyperparameter.</li>
@@ -181,8 +182,8 @@ with rare claim terms absent from the cited chunk demoting the score &mdash; an 
 signal, evaluated against Jaccard and cosine baselines (F1 0.664 vs 0.579 and 0.512).</li>
 <li><b>Citation-mismatch flag.</b> Detects when a <i>different</i> retrieved chunk supports the sentence
 better than the one actually cited (verifier.py).</li>
-<li><b>Honest null results.</b> Static quality g(d) dev-tuned to 0 and proximity neutral on nDCG but
-positive on MRR are reported rather than hidden &mdash; the rubric rewards this.</li>
+<li><b>Null results are included.</b> Static quality g(d) ends up dev-tuned to 0, and proximity is
+neutral on nDCG but positive on MRR.</li>
 </ul>
 
 <h2>5. Generation and trustworthiness</h2>
@@ -197,7 +198,7 @@ the reported tables.</p>
 novelty(s, chunk_k) = &#931; idf(t) [t &#8712; terms(s) &#8713; chunk_k] / &#931; idf(t)</pre>
 <p>Cosine is computed directly from the inverted index (no document vectors are materialized). The
 <i>novelty penalty</i> down-weights sentences whose rare claim terms are lexically absent from the
-cited chunk &mdash; the classic symptom of an unfaithful citation. Two dev-tuned hyper-parameters
+cited chunk &mdash; a typical sign of an unfaithful citation. Two dev-tuned hyper-parameters
 (weight&nbsp;0.6, form&nbsp;=&nbsp;multiplicative, SUPPORT threshold&nbsp;=&nbsp;0.20, WEAK
 &#8805;&nbsp;0.12) were selected on the dev split by F1. A <i>citation-mismatch</i> flag is raised when
 a <i>different</i> retrieved chunk supports the sentence by &gt;0.10, even if the cited chunk passes.</p>
@@ -228,10 +229,10 @@ detection. Charts and CSVs are written by the CLI itself.</p>
 the full system (A2/A3) <b>matches or exceeds both BM25 variants</b> while remaining a plain tf-idf
 system. Proximity is neutral on nDCG but improves MRR (+0.004), i.e. it promotes the right document
 into rank&nbsp;1 more often &mdash; consistent with its design goal of rescuing exact phrase matches;
-it costs latency, so it is a tunable switch. Static quality g(d) was dev-tuned to zero &mdash; a
-genuine null result we report rather than hide. Champion lists deliver an <b>11&times; speed-up</b>
-(5.7&nbsp;ms vs 64.9&nbsp;ms per query) at &minus;5&nbsp;nDCG points: a classic efficiency/accuracy
-trade-off exposed as a CLI flag (<code>--champions</code>).</p>
+it costs latency, so it is a tunable switch. Static quality g(d) was dev-tuned to zero &mdash; a null
+result, reported as such. Champion lists deliver an <b>11&times; speed-up</b>
+(5.7&nbsp;ms vs 64.9&nbsp;ms per query) at &minus;5&nbsp;nDCG points, the classic
+efficiency/accuracy trade-off exposed as a CLI flag (<code>--champions</code>).</p>
 
 <h3>4.2 Citation verification vs baselines</h3>
 <div class="two">
@@ -300,12 +301,10 @@ python -m verirag ask "metformin reduces mortality in type 2 diabetes patients" 
 <p><b>Work division.</b> Team size 1: <b>SHRESTH</b> designed and implemented indexing, query
 processing, ranking, chunking, generation, verification, evaluation, the report and the demo video;
 owns every component explained in the video.</p>
-<p><b>AI-use declaration.</b> As permitted by the rules, AI assistants (opencode/ChatGPT) were used for
-code scaffolding, debugging, cross-checking the from-scratch Porter stemmer against NLTK, and editorial
-help on this report. Algorithmic decisions (zone weight, proximity formulation and window, novelty
-penalty and its form/weight, dev/test protocol, chunking choice) were designed, questioned and
-validated by the author; every reported number is produced by the two CLI commands above from a cold
-start, and no metric in this report was produced by hand.</p>
+<p><b>AI-use declaration.</b> An AI coding assistant was used for parts of the implementation and for
+editing help. The system design, the choice of algorithms (zone weighting, proximity window, novelty
+penalty, dev/test split, chunking) and all numbers in this report are mine: the evaluation results are
+produced by the two commands above and were not computed by hand.</p>
 
 <div class="footer-note">VeriRAG &middot; CSD358 IR Hackathon 2026 &middot; Track T1 &middot; stdlib-only Python &middot; full source and raw evaluation outputs in the repository (<span class="mono">output/eval_retrieval.csv</span>, <span class="mono">output/eval_verifier.csv</span>).</div>
 
