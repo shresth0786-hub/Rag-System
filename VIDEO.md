@@ -4,79 +4,74 @@ Presenter: SHRESTH (solo team — narrates every component; state at the start t
 all components). Record the terminal full-screen (1080p, font ≥16pt). Everything below runs
 from the repo root; expected outputs are noted so you can cut/retake if a run differs.
 
-Tip: run `python -m verirag` through a prompt so the command itself is visible on camera.
+**Story of the video:** VeriRAG is a *RAG system*, so the video is one question flowing through
+the loop — **ask → retrieve → generate → verify → answer** — and then we peel back each layer
+of the retrieval and verification internals.
 
-Tip: run `python -m verirag repl` for an interactive prompt (type `s:`/`b:`/`t:`/`v:` prefixes
-or just paste a claim), or `python -m verirag web` for the browser UI — perfect for live on-camera
-tinkering between the scripted takes below.
+Tip: run `python -m verirag` through a prompt so the command itself is visible on camera.
 
 ---
 
-## 0:00–0:35 | Hook + what this is
-- No title card — start with the terminal, say: "This is VeriRAG, a RAG system whose entire
-  retrieval engine is written from scratch in Python stdlib — inverted index, Porter stemmer,
-  Boolean parser, tf-idf ranking — plus a citation verifier. Dataset: BEIR SciFact."
-- `Get-ChildItem verirag\*.py` (one line) to show the package is small: "13 modules, ~2,100 lines."
+## 0:00–0:35 | Hook: what "RAG" means here
+- Open the terminal and print the loop as a one-shot diagram:
+  `python -c "print('QUESTION -> RETRIEVE (inverted index) -> GENERATE (cited answer) -> VERIFY (each citation) -> ANSWER')"`
+- `Get-ChildItem verirag\*.py` — "13 modules, ~2,100 lines, all owned by me, pure stdlib."
+- Say: "This is VeriRAG — a retrieval-augmented generation system. A question goes in, evidence
+  chunks are retrieved, an answer is generated with citations, and **every citation is verified
+  before it is shown**. Corpus: BEIR SciFact, 5,183 papers."
 
-## 0:35–1:45 | Build: chunking + indexing (owned: text.py, chunker.py, index.py)
-- Live: `python -m verirag build`
-  - Narrate while it runs (~30 s): tokenizer keeps negators; Porter stemmer written from
-    scratch; 3-sentence chunks with step 2 → "what is a document?" choice.
-  - Point at stats JSON: `n_docs=5183`, `n_chunks=21233`, `n_terms=26319`, build seconds.
-- Live: `python scripts\check_stemmer_full.py`
-  - Show "18 / 29,699 mismatches, all non-ASCII ligatures" → from-scratch stemmer validated
-    against NLTK's original algorithm.
+## 0:35–1:50 | The whole RAG loop in ONE command (ask)
+- Live: `python -m verirag ask "metformin reduces mortality in type 2 diabetes patients"`
+- Point at the four layers bottom-to-top as they appear:
+  (1) `query:` — the question,
+  (2) `-- retrieved chunks (k=5) --` — the retrieve stage, scores on the left,
+  (3) `-- generated answer --` — sentences each ending in `[1] [3]` (the generate stage + citations),
+  (4) `-- citation verification --` + `verdicts:` — the verify stage (expect SUPPORTED rows).
+- Say: "One command: retrieve, generate, verify. Every bracket is a real chunk you can open."
 
-## 1:45–2:45 | Inside the index (owned: index.py, scoring.py)
-- Live: `python -m verirag term resist`
-  - Point at: `df`, `idf`, a few `(doc, tf, tf_title, positions)` postings, skip pointers.
-  - Say: "title terms carry zone weight λ=2 via a +1000 position gap; skips built for lists
-    >128 entries; champion list top-50 exists as a fast mode."
+## 1:50–2:50 | Same question in the browser UI (cleanest way to SEE the RAG loop)
+- Live: `python -m verirag web` (auto-opens the browser)
+- Ask tab → paste the same metformin question → Run.
+- Point at: question box at top → evidence chunks (yellow = your words) → cited answer with
+  badges → green SUPPORTED verdict strip at the end.
+- Say: "Same pipeline, one page — you can literally watch question → evidence → cited answer → verdict."
+  (This is the strongest RAG shot; keep the browser open for later.)
 
-## 2:45–3:40 | Query processing (owned: query.py)
-- Live: `python -m verirag bool '\"antibiotic resistance\" AND bacteria'`
-  - (PowerShell needs the backslashes: `\"...\"`; cmd.exe can use plain quotes.)
-  - Point at the trace line(s): "df-ordered AND — rarest term first, skip pointers jump
-    over long postings; phrase check is positional, not bag-of-words" (expect 7 matches).
-- Live: `python -m verirag bool 'title:CRISPR AND NOT review'` (expect 54 matches)
-  - Point at `[postings[crispr] zone=title]` — "field query + NOT in one parse; 54 title-zone
-    matches vs 62 for plain CRISPR."
+## 2:50–3:45 | Peel back the retrieval layer (index)
+- Live: `python -m verirag term resist` — df, idf, postings, skip pointers.
+- Say: "Behind 'retrieve' is an inverted index I wrote from scratch — term frequencies, zone
+  weight, skip pointers. The retrieval stage is inspectable all the way down."
 
-## 3:40–4:45 | Ranked retrieval with explain (owned: retrieve.py, scoring.py)
-- Live: `python -m verirag search "antibiotic resistance genes in soil bacteria" --explain`
-  - Point at term stats (idf, query weight ltc), then per-result breakdown:
-    `score = base × (1 + w·prox) + η·g` with actual numbers from the `(base=… prox=… g=…)` line.
-  - Say: "w=0.5 and window=30 were chosen on the 100-claim dev split; η tuned to 0.0 —
-    a null result we report in the paper."
+## 3:45–4:30 | Peel back query processing + scoring
+- Live: `python -m verirag search "soil bacteria genes"` — highlight shows your words in red
+  inside the matched chunk text.
+- Live: `python -m verirag bool '"antibiotic resistance" AND bacteria'` — df-ordered AND,
+  skip-pointer intersection, positional phrase check (expect 7 matches).
+- Say: "Ranked and boolean retrieval share one index; every query leaves an audit trail."
 
-## 4:45–6:10 | RAG answer + citation verification (owned: generator.py, verifier.py)
-- Live: `python -m verirag ask "metformin reduces mortality in type 2 diabetes patients" --explain`
-  - Point at: retrieved chunks with scores → extractive answer sentences each ending `[1] [3]`
-    → verification table: `support, cos, novel, verdict` (expect SUPPORTED rows here).
-  - Say: "support = cosine(claim, cited chunk) × (1 − 0.6·novelty); novelty = idf-weighted
-    share of claim terms absent from the chunk it cites."
+## 4:30–5:40 | The stage that makes this RAG trustworthy: verification
 - Live: `python -m verirag verify "probiotics prevent antibiotic-associated diarrhea"`
-  - Expect a WEAK/UNSUPPORTED outcome with `novel terms: [...]` printed — this is the
-    money shot: the system distrusts its own plausible-looking citation.
-  - Optional adversarial twist: cite-tamper by asking about a claim whose top chunk is off-topic
-    and show the mismatch warning in `ask` output.
+  - Expect WEAK, with `novel terms:` printed. Say: "A plausible claim, but novelty-penalized
+    support says weak — the words it needs never appear in the cited chunk."
+- Live: `python -m verirag ask "metformin ..."` again? No — instead run:
+  `python -m verirag ask "probiotics prevent antibiotic-associated diarrhea"`
+  - Show the generated answer still cites [2]/[4] but the verification table flags the weak
+    sentence. "Generation trusts nothing: it can cite, but the verifier can veto."
+- Say: "support = cosine × (1 − 0.6·novelty). That veto is force-on for every answer."
 
-## 6:10–7:15 | Evaluation, live (owned: evaluate.py, metrics.py)
-- Live: `python -m verirag eval-verify --charts` (~16 s)
-  - Read the table off the terminal: Jaccard F1 0.512 / cosine 0.579 / **VeriRAG 0.664**,
-    accuracy 0.43 → 0.67; then the retrieval stage and evidence-recall lines.
-- Live (or narrate while it runs, ~95 s): `python -u -m verirag eval --charts`
-  - Point at the ladder: A0 0.601 → A1 0.652 (stemming!) → A2 0.656 (zones) → A3 0.655
-    (proximity: neutral nDCG, +MRR) vs BM25 0.653; champions row = 5.7 ms/query.
-  - Open `output\eval_retrieval.png` and `output\eval_verifier.png` for 5 s each.
+## 5:40–6:50 | Evaluate the loop (retrieval + verifier, live)
+- Live: `python -m verirag eval-verify --charts` — F1 0.512 Jaccard → 0.579 cosine → **0.664
+  VeriRAG**; accuracy 0.43 → 0.67; evidence recall 0.10 → 0.57.
+- Live: `python -u -m verirag eval --charts` — ladder A0 0.601 → A1 0.652 (stemming) → A2 0.656
+  (zones) → A3 0.655 (prox,+MRR) vs BM25 0.653; champions 5.7 ms/query.
+- Open `output\eval_retrieval.png` and `output\eval_verifier.png` for 5 s each.
 
-## 7:15–7:50 | Close (honest limitations + where things are)
-- Say: "Sentence chunks cost us 1.8 nDCG vs whole-doc indexing — we pay that for span-level
-  citations. g(d) didn't help on SciFact. LLM mode is wired (`--llm`) but the numbers above
-  are the deterministic extractive path."
-- Show `Get-ChildItem report` → `report.pdf` (4 pages) and README: "Everything here reproduces
-  with python -m verirag eval --charts."
-- End on `python -m verirag ask "<claim>"` output. No end card needed.
+## 6:50–7:50 | Honest limitations + close
+- Say: "Sentence chunks cost ~2 nDCG vs whole-doc, but buy span-level citations. g(d) didn't
+  help on SciFact — we report that null. LLM generation is wired (`--llm`) but every number
+  here is the deterministic extractive path."
+- `Get-ChildItem report` → report.pdf (4 pages): "Reproduces with `python -m verirag eval --charts`."
+- End on one more `python -m verirag ask "<claim>"` run so the LAST image is the RAG loop again.
 
 **Total ≈ 7:50.** Upload as **unlisted**; paste the link into README.md (replace the placeholder)
 and into the report's header line.
