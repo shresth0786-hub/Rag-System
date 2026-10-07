@@ -141,6 +141,7 @@ function addAssistant(d) {
   const el = document.createElement("div");
   el.className = "msg assistant";
   el.innerHTML = `<div class="avatar">V</div><div class="body">
+      <div class="query-echo"><span>answer for</span>“${esc(d.query)}”</div>
       <div class="answer">${sentences}</div>
       ${strip}
       ${buildEvidence(d)}
@@ -222,20 +223,23 @@ function renderSearch(d) {
         <span>g ${h.g.toFixed(3)}</span><div class="pct cmp-static" style="width:${(h.g * 60).toFixed(1)}%"></div>
       </div>
     </div>`).join("");
-  return `<div class="card"><h3>Top-${d.hits.length} hits · <span class="hit-note">yellow = your words</span></h3>${trace}${rows || "<p>(no hits)</p>"}</div>`;
+  return `<div class="card"><div class="query-echo"><span>searching</span>“${esc(d.query)}”</div>
+    <h3>Top-${d.hits.length} hits · <span class="hit-note">yellow = your words</span></h3>${trace}${rows || "<p>(no hits)</p>"}</div>`;
 }
 
 function renderBool(d) {
   const hits = d.n_results
     ? d.hits.map((h) => `<div class="hit"><div class="head">[${esc(h.chunk_id)}] doc=${esc(h.parent_doc)} · <span class="title">${esc(h.title)}</span></div></div>`).join("")
     : "<p>(no matches)</p>";
-  return `<div class="card"><h3>${d.n_results} matching docs</h3>${d.trace.map(traceStep).join("")}${hits}</div>`;
+  return `<div class="card"><div class="query-echo"><span>boolean query</span>“${esc(d.query)}”</div>
+    <h3>${d.n_results} matching docs</h3>${d.trace.map(traceStep).join("")}${hits}</div>`;
 }
 
 function renderTerm(d) {
   const rows = d.postings_sample.map((p) =>
     `<tr><td>${esc(p.chunk_id)}</td><td class="num">${p.tf}</td><td class="num">${p.tf_title}</td><td>${p.positions.join(", ")}</td></tr>`).join("");
   return `<div class="card">
+    <div class="query-echo"><span>looked up</span>“${esc(d.term)}”</div>
     <h3>${esc(d.term)} — df=${d.df} · idf=${d.idf} · postings=${d.postings_len}</h3>
     <table class="term-table"><tr><th>chunk</th><th>tf</th><th>in title</th><th>positions</th></tr>${rows}</table>
     <h4>skip-list pointers</h4>
@@ -256,6 +260,7 @@ function renderVerify(d) {
       <td>${r.novel_terms.length ? esc(r.novel_terms.join(" ")) : "-"}</td>
     </tr>`).join("");
   return `<div class="card">
+    <div class="query-echo"><span>checking claim</span>“${esc(d.claim)}”</div>
     <div class="verdict-strip"><span class="badge mono">terms ${esc(d.terms.join(" "))}</span>
       <strong>verdict:</strong> ${badge(d.verdict)} <span class="badge mono">best ${d.best_support.toFixed(4)}</span></div>
     <table><tr><th>#</th><th>chunk</th><th>title</th><th class="num">cos</th><th class="num">novelty</th><th class="num">support</th><th>absent terms</th></tr>${rows}</table>
