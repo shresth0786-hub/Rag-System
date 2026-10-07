@@ -255,6 +255,7 @@ def cmd_web(args):
         host=args.host,
         port=args.port,
         open_browser=not args.no_open,
+        open_code=not args.no_open_code,
         method=args.method,
         champions=args.champions,
         high=args.high,
@@ -513,6 +514,8 @@ def build_parser():
     wb.add_argument("--low", type=float, default=0.12)
     wb.add_argument("--novelty-weight", type=float, default=0.6)
     wb.add_argument("--no-open", action="store_true", help="do not auto-open the browser")
+    wb.add_argument("--no-open-code", action="store_true",
+                    help="do not auto-open the source files in VS Code (opened by default)")
     wb.set_defaults(func=cmd_web)
 
     return p

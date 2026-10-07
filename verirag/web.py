@@ -6,6 +6,8 @@ single-page UI. Run with:  python -m verirag web
 
 import json
 import os
+import shutil
+import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
@@ -289,7 +291,36 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-def serve(index_path, host="127.0.0.1", port=8123, open_browser=True, **opts):
+_SOURCE_FILES = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "web.py")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "pipeline.py")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "retrieve.py")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "verifier.py")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "web", "app.js")),
+]
+
+
+def open_in_editor():
+    """Open the source files powering the UI in VS Code (Insiders preferred)."""
+    cmd = shutil.which("code-insiders") or shutil.which("code")
+    if not cmd:
+        print("  (VS Code not found on PATH — skip opening the source)")
+        return
+    try:
+        subprocess.Popen(
+            [cmd, *_SOURCE_FILES],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        print("  opened source in the editor:")
+        for f in _SOURCE_FILES:
+            print(f"    {f}")
+    except OSError as exc:
+        print(f"  (could not open editor: {exc})")
+
+
+def serve(index_path, host="127.0.0.1", port=8123, open_browser=True,
+          open_code=False, **opts):
     """Start the browser UI. Blocks until Ctrl+C."""
     import webbrowser
 
@@ -311,8 +342,10 @@ def serve(index_path, host="127.0.0.1", port=8123, open_browser=True, **opts):
     url = f"http://{host}:{port}/"
     print(f"VeriRAG UI: {url}  (index: {index_path})")
     print("Ctrl+C to stop.")
+    if open_code:
+        threading.Timer(0.5, open_in_editor).start()
     if open_browser:
-        threading.Timer(0.5, webbrowser.open, args=[url]).start()
+        threading.Timer(1.0, webbrowser.open, args=[url]).start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
