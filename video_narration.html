@@ -10,6 +10,7 @@
   .sub { color: #555; font-size: 10.5pt; margin-bottom: 12px; }
   .take { border: 1px solid #ccc; border-radius: 8px; padding: 10px 14px 12px; margin: 14px 0; page-break-inside: avoid; background: #fafafa; }
   .tc { font-family: Consolas, monospace; font-size: 10.5pt; font-weight: 600; color: #0b5394; }
+  .req { display: inline-block; font-size: 8.5pt; font-weight: 700; color: #1e6b2e; background: #e4f3e8; border: 1px solid #8fc99a; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
   .cmd { font-family: Consolas, monospace; font-size: 10.5pt; background: #eef3f8; border-left: 3px solid #0b5394; padding: 5px 10px; margin: 6px 0; }
   .say { margin: 6px 0 4px; }
   .say b { color: #333; }
@@ -17,78 +18,102 @@
   .screen { font-family: Consolas, monospace; font-size: 10pt; color: #444; margin: 3px 0 0; }
   .diag { font-family: Consolas, monospace; font-size: 10.5pt; text-align: center; background: #0b5394; color: #fff; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
   .note { font-size: 10pt; color: #7a2e00; background: #fff3e6; border-left: 3px solid #d97706; padding: 6px 10px; margin: 6px 0; }
+  .check { background: #f2f7ff; border: 1px solid #6fa8dc; border-radius: 8px; padding: 10px 14px; margin: 14px 0; }
+  .check h3 { margin: 0 0 6px; font-size: 12pt; color: #0b5394; }
+  .check li { margin: 3px 0; }
+  .ok { color: #1e6b2e; font-weight: 700; }
 </style>
 </head>
 <body>
 
-<h1>&#x1F3AC; VeriRAG — Demo Video Narration Script (RAG-first)</h1>
-<div class="sub">Screen recording only, no slides · ~7:50 total · Say at the start that you built every component (solo team). IMPORTANT: every scene follows the same rhythm — <b>point at the screen, say one sentence, type the command, point at the result, say one sentence</b>. Read the <b>quote</b> lines aloud; blue blocks are commands.</div>
+<h1>&#x1F3AC; VeriRAG — Demo Video Narration Script</h1>
+<div class="sub">Track T1 · shares every requirement of the assignment ("What the video must show") · ~7:50 total · <b>screen recording only, no slides</b> · every command runs live against the real index — nothing is hard-coded or pre-recorded. Presenter: <b>SHRESTH</b>, solo team (every component is explained by the engineer who built it). Rhythm per scene: <b>point at the screen, say one sentence, type the command, point at the result, say one sentence</b>. Read the <b>quote</b> lines aloud; blue blocks are commands.</div>
 
 <div class="diag">QUESTION &rarr; RETRIEVE (inverted index) &rarr; GENERATE (cited answer) &rarr; VERIFY (each citation) &rarr; ANSWER</div>
 
 <div class="take">
-  <div class="tc">0:00–0:35 | Hook: what "RAG" means here</div>
+  <div class="tc">0:00–0:50 | 1. The problem + why it belongs to T1 <span class="req">REQ 1 (&le;1 min)</span></div>
   <div class="cmd">python -c "print('QUESTION -> RETRIEVE (inverted index) -> GENERATE (cited answer) -> VERIFY (each citation) -> ANSWER')"</div>
   <div class="cmd">Get-ChildItem verirag\*.py</div>
-  <div class="say"><b>Say:</b> <span class="q">"This is VeriRAG — a retrieval-augmented generation system. A question goes in, evidence chunks are retrieved, an answer is generated with citations, and every citation is verified before it is shown. The whole package is 13 modules, about two thousand one hundred lines, all owned by me, pure Python stdlib. Corpus: BEIR SciFact, five thousand one hundred eighty-three papers."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"This is VeriRAG, for track T1, retrieval-augmented generation and trustworthy answers. The problem: an LLM is only as good as what gets retrieved for it — answers that cannot cite their sources are where hallucinations come from. This project belongs to T1 because the retriever is a real, inspectable IR component, and every generated claim is traced to a ranked source. I'm Shresth, I'm a solo team, and I built every module. The whole package is thirteen modules, about two thousand one hundred lines, pure Python standard library. Corpus: BEIR SciFact, five thousand one hundred eighty-three papers."</span></div>
 </div>
 
 <div class="take">
-  <div class="tc">0:35–1:50 | The whole RAG loop in ONE command</div>
+  <div class="tc">0:50–2:05 | 2. The system running end to end on a real query <span class="req">REQ 2</span></div>
   <div class="cmd">python -m verirag ask "metformin reduces mortality in type 2 diabetes patients"</div>
   <div class="say"><b>Point at four layers as they print:</b></div>
   <div class="screen">(1) the query line &rarr; "that's the question"<br>(2) "-- retrieved chunks (k=5) --" &rarr; "the retrieve stage, scores on the left"<br>(3) "-- generated answer --" &rarr; "sentences each ending in [1] [3]"<br>(4) "-- citation verification --" + verdicts &rarr; "the verify stage"</div>
-  <div class="say"><b>Say:</b> <span class="q">"One command: retrieve, generate, verify. Every bracket is a real chunk you can open, and every sentence was checked before being shown. These come back supported."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"One command: retrieve, generate, verify. Every bracket is a real chunk from the index you can open, and every sentence was checked against its chunk before it was shown. These come back supported."</span></div>
 </div>
 
 <div class="take">
-  <div class="tc">1:50–2:50 | Same question in the browser UI (strongest RAG shot)</div>
+  <div class="tc">2:05–2:50 | 2b. Same loop in the browser UI (visible end to end) <span class="req">REQ 2</span></div>
   <div class="cmd">python -m verirag web</div>
-  <div class="say"><b>Say:</b> <span class="q">"To make the loop visible, here's the browser interface — same pipeline, one page."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"Same pipeline, one page, so you can watch the whole loop at once."</span></div>
   <div class="screen">Ask tab &rarr; paste the same metformin question &rarr; Run.<br>Point at: question box &rarr; evidence chunks (yellow = your words) &rarr; cited answer with badges &rarr; green SUPPORTED strip.</div>
-  <div class="say"><b>Say:</b> <span class="q">"You can watch the entire loop: question, evidence, cited answer, verdict. Keep this open for later."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"Question, evidence, cited answer, verdict — the full RAG sequence on screen. Keep this open."</span></div>
 </div>
 
 <div class="take">
-  <div class="tc">2:50–3:45 | Peeling back: the retrieval layer</div>
-  <div class="cmd">python -m verirag term resist</div>
-  <div class="say"><b>Say:</b> <span class="q">"Behind 'retrieve' is an inverted index I wrote from scratch — document frequency, idf weight, postings with word positions, skip pointers for speed. The retrieval stage is inspectable all the way down."</span></div>
-</div>
-
-<div class="take">
-  <div class="tc">3:45–4:30 | Peeling back: query processing + scoring</div>
-  <div class="cmd">python -m verirag search "soil bacteria genes"</div>
-  <div class="say"><b>Say:</b> <span class="q">"Ranked search — and the words I typed light up in red inside the matched chunks, so you can see exactly what the query matched."</span></div>
-  <div class="cmd">python -m verirag bool '"antibiotic resistance" AND bacteria'</div>
-  <div class="say"><b>Say:</b> <span class="q">"The same index also answers Boolean and phrase queries, and every step is traced: df-ordered AND, skip-pointer intersection, positional phrase check. Seven documents match."</span></div>
-</div>
-
-<div class="take">
-  <div class="tc">4:30–5:40 | The stage that makes this RAG trustworthy: verification</div>
+  <div class="tc">2:50–3:55 | 2c. A limitation, live + 3a. the verify stage's weights &amp; scores <span class="req">REQ 2 + REQ 3</span></div>
   <div class="cmd">python -m verirag verify "probiotics prevent antibiotic-associated diarrhea"</div>
-  <div class="say"><b>Say:</b> <span class="q">"Now a claim that looks plausible — but the novelty penalty kicks in and the verdict is weak, with the missing words printed. Generation trusts nothing: it can cite a chunk, but the verifier can veto it."</span></div>
+  <div class="say"><b>Point at the intermediate output:</b></div>
+  <div class="screen">the cited chunk &rarr; the printed novel terms &rarr; the support score with the novelty penalty visible &rarr; the verdict: WEAK.</div>
+  <div class="say"><b>Say:</b> <span class="q">"This is a claim that reads like it might be true — but the verifier scores each sentence against its cited chunk: cosine times one minus zero-point-six times novelty. The words it needs never appear in the chunk, the penalty kicks in, and the verdict is weak. That's the system finding its own limitation, live."</span></div>
   <div class="cmd">python -m verirag ask "probiotics prevent antibiotic-associated diarrhea"</div>
-  <div class="say"><b>Say:</b> <span class="q">"And in the full pipeline, the answer may still be generated — but the weak sentence is flagged in the verification table. Support equals cosine times one-minus-zero-point-six-times-novelty, and that veto is on for every answer."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"And in the full pipeline the answer is still generated — but the weak sentence is flagged in the verification table. Generation can cite a chunk; the verifier can veto it. That veto is force-on for every answer."</span></div>
 </div>
 
 <div class="take">
-  <div class="tc">5:40–6:50 | Evaluating the loop, live</div>
+  <div class="tc">3:55–4:50 | 3b. The pipeline's engine: index + the actual code <span class="req">REQ 3</span></div>
+  <div class="cmd">python -m verirag term resist</div>
+  <div class="say"><b>Point at the printed index internals:</b></div>
+  <div class="screen">document frequency &rarr; idf weight &rarr; the postings list &rarr; skip pointers.</div>
+  <div class="say"><b>Say:</b> <span class="q">"Behind 'retrieve' is an inverted index I wrote from scratch — dictionary and postings, idf weights, word positions, skip pointers."</span></div>
+  <div class="cmd">Get-Content verirag\index.py -TotalCount 28</div>
+  <div class="say"><b>Say:</b> <span class="q">"And here's the code behind it — the dictionary-and-postings build, zone weights, and the chunking decision: the 'what is a document?' choice. Corpus documents are split into sentence-level chunks that are scored and cited individually, which is what makes span-level citations possible."</span></div>
+</div>
+
+<div class="take">
+  <div class="tc">4:50–5:40 | 3c. Query processing + scoring (ranked, Boolean, phrase) <span class="req">REQ 3</span></div>
+  <div class="cmd">python -m verirag search "soil bacteria genes"</div>
+  <div class="say"><b>Say:</b> <span class="q">"Ranked cosine search — the words I typed light up in red inside the matched text, and the scores on the left are the cosine scores."</span></div>
+  <div class="cmd">python -m verirag bool '"antibiotic resistance" AND bacteria'</div>
+  <div class="say"><b>Say:</b> <span class="q">"The same index answers Boolean and phrase queries — and every step is traced: df-ordered AND, skip-pointer intersection, positional phrase check. Seven documents match."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"Ranked and Boolean retrieval share one index, and every query leaves an audit trail of intermediate postings and scores — not just a top-k screen."</span></div>
+</div>
+
+<div class="take">
+  <div class="tc">5:40–6:45 | 4. Evaluation: P@k and recall against a baseline <span class="req">REQ 4</span></div>
   <div class="cmd">python -m verirag eval-verify --charts</div>
-  <div class="say"><b>Say:</b> <span class="q">"The verifier, on 200 held-out claims: Jaccard scores 0.512, plain cosine 0.579, and the novelty-penalized support reaches 0.664 F1, with accuracy up from 43 to 67 percent."</span></div>
+  <div class="say"><b>Point at the table as it prints:</b></div>
+  <div class="screen">baseline: Jaccard overlap &rarr; baseline: cosine only &rarr; VeriRAG (cosine &minus; novelty penalty) — for each: P(SUPPORT), R(SUPPORT), F1, accuracy.</div>
+  <div class="say"><b>Say:</b> <span class="q">"The verifier, on two hundred held-out claims: Jaccard scores 0.512, plain cosine 0.579, and the novelty-penalized support reaches 0.664 F1, accuracy up from 43 to 67 percent, evidence-sentence recall from 0.10 to 0.57."</span></div>
   <div class="cmd">python -u -m verirag eval --charts</div>
-  <div class="say"><b>Say:</b> <span class="q">"And the retrieval ladder that feeds it: baseline 0.601, stemming jumps to 0.652, zones 0.656, proximity 0.655 while raising MRR — versus BM25 at 0.653. Champions mode answers in under 6 milliseconds per query."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"And the retrieval evaluation — every row reports P@5, P@10, recall at 100, nDCG@10 and MRR against the BM25 baseline. The ladder: baseline 0.601, stemming to 0.652, zones 0.656, proximity 0.655 while raising MRR — versus BM25 at 0.653. Champions mode answers under six milliseconds per query. Those are the numbers in the report, reproduced live."</span></div>
   <div class="screen">Open output\eval_retrieval.png and output\eval_verifier.png briefly.</div>
 </div>
 
 <div class="take">
-  <div class="tc">6:50–7:50 | Honest limitations + close</div>
-  <div class="say"><b>Say:</b> <span class="q">"Honest trade-offs: sentence-level chunks cost about two nDCG points versus whole-document indexing, but they buy span-level citations. The static-quality term didn't help on SciFact, and we report that null. LLM generation is wired in, but every number you've seen is the deterministic extractive path."</span></div>
+  <div class="tc">6:45–7:50 | 5. Component ownership + honest close <span class="req">REQ 5</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"Component ownership — as the solo engineer I present each component I own: the tokenizer and chunker, the document-segmentation decision — mine; the inverted index, zones, scoring and champions lists — mine; the retrieval pipeline and the extractive cited generator — mine; the verifier with its novelty penalty — mine; the evaluation harness — mine. Every component you saw was explained by the person who built it."</span></div>
+  <div class="say"><b>Say:</b> <span class="q">"Honest trade-offs: sentence-level chunks cost about two nDCG points versus whole-document indexing, but they buy span-level citations. A static-quality term didn't help on SciFact, and we report that null. LLM generation is wired in, but every number you've seen is the deterministic extractive path. The full four-page report and the README reproduce every number with one command."</span></div>
   <div class="cmd">Get-ChildItem report</div>
-  <div class="say"><b>Say:</b> <span class="q">"The full four-page report and the README reproduce every number with one command."</span></div>
   <div class="screen">End on one more: python -m verirag ask "&lt;claim&gt;" — the LAST image is the RAG loop again.</div>
 </div>
 
-<div class="note">PowerShell notes: keep the backslash-quotes in the bool command exactly as shown (<b>'\"antibiotic resistance\" AND bacteria'</b>). For live tinkering between takes: <b>python -m verirag repl</b> or the browser UI (<b>python -m verirag web</b>).</div>
+<div class="check">
+<h3>Coverage — every "What the video must show" item</h3>
+<ul>
+<li><span class="ok">&#10003; 1. Problem + why it belongs to track T1</span> — 0:00–0:50 (&le; 1 min)</li>
+<li><span class="ok">&#10003; 2. System running end to end on real inputs, incl. a limitation</span> — 0:50–2:05 (ask), 2:05–2:50 (browser), limitation shown live 2:50–3:55</li>
+<li><span class="ok">&#10003; 3. Pipeline, then evaluation; actual code &amp; intermediate output</span> — pipeline diagram header; index/code 3:55–4:50; postings/weights/scores 2:50–3:55 and 4:50–5:40; evaluation 5:40–6:45</li>
+<li><span class="ok">&#10003; 4. Evaluation results against a baseline</span> — 5:40–6:45 (P@5/P@10/R@100/nDCG@10/MRR vs BM25; verifier F1 vs baselines)</li>
+<li><span class="ok">&#10003; 5. Each member explaining the component they own</span> — 6:45–7:50 (solo: every component presented by its builder)</li>
+</ul>
+</div>
+
+<div class="note">PowerShell notes: keep the backslash-quotes in the bool command exactly as shown (<b>'\"antibiotic resistance\" AND bacteria'</b>). Run everything from the repo root so Get-ChildItem / Get-Content paths resolve. Between takes, live tinkering: <b>python -m verirag repl</b> or <b>python -m verirag web</b>. Delivery: upload as <b>unlisted</b> (YouTube/Drive), paste the link into README.md <i>and</i> the report header; the report also carries the work-division and AI-use-declaration sections.</div>
 
 </body>
 </html>
