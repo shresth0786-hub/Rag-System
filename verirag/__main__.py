@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import sys
 
 from .index import InvertedIndex
@@ -7,6 +8,40 @@ from .pipeline import Pipeline, build_from_corpus
 from .query import BooleanTrace, run_boolean
 from .retrieve import search
 from .verifier import verdict_counts, verify
+
+_HI = "\x1b[31m"    # red — matched query terms
+_RS = "\x1b[0m"     # reset
+
+
+def _color_on():
+    return sys.stdout.isatty()
+
+
+def _highlight(text, terms, color=True):
+    if not terms:
+        return text
+    pattern = "|".join(re.escape(t) for t in sorted(set(terms), key=len, reverse=True))
+    if not color or not _color_on():
+        return text
+
+    def _mark(m):
+        return f"{_HI}{m.group(0)}{_RS}"
+
+    return re.sub(rf"(?i)\b({pattern})\b", _mark, text)
+
+
+def _excerpt(text, terms, radius=70, color=True):
+    if not terms:
+        return text[: radius * 2]
+    low = text.lower()
+    pos = min((low.find(t.lower()) for t in terms if low.find(t.lower()) != -1), default=-1)
+    if pos < 0:
+        return _highlight(text[: radius * 2], terms, color=color)
+    start = max(0, pos - radius)
+    end = min(len(text), pos + radius)
+    pre = "\u2026" if start > 0 else ""
+    post = "\u2026" if end < len(text) else ""
+    return pre + _highlight(text[start:end], terms, color=color) + post
 
 
 def _load(args):
@@ -59,12 +94,16 @@ def cmd_search(args):
                 f"qw={st['query_weight']:.4f} postings={st['postings_processed']}"
             )
     print("\n-- ranked results --")
+    raw_terms = sorted(
+        {t.lower() for t in re.findall(r"[A-Za-z0-9]+", args.query) if len(t) > 1}
+    )
     for i, r in enumerate(ranked, 1):
         doc = index.docs[r.doc_id]
         print(
             f"  {i:2d}. {r.score:.4f}  [{r.doc_id}]  {doc.title[:78]}  "
             f"(base={r.base:.4f} prox={r.proximity:.3f} g={r.g:.3f})"
         )
+        print(f"        {_excerpt(doc.text, raw_terms)}")
         if args.explain:
             for term, w in sorted(r.contributions.items(), key=lambda x: -x[1]):
                 print(f"        {term:16s} -> {w:.4f}")

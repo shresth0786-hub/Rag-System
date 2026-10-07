@@ -225,6 +225,14 @@ td.num, th.num { text-align: right; font-family: var(--mono); }
   overflow: hidden;
 }
 
+mark.hl {
+  background: #ffd54d;
+  color: #1a1a1a;
+  border-radius: 3px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
 .trace-step {
   font-family: var(--mono);
   font-size: 12.5px;
@@ -255,6 +263,9 @@ td.num, th.num { text-align: right; font-family: var(--mono); }
 .cmp-base { background: var(--accent); }
 .cmp-prox { background: var(--green); }
 .cmp-static { background: var(--amber); }
+
+.hit-note { color: var(--muted); font-size: 12px; font-weight: 400; }
+.snippet { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 
 .hidden { display: none; }
 loader { display: block; text-align: center; color: var(--muted); font-family: var(--mono); padding: 24px 0; }

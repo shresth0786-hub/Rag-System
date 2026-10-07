@@ -47,6 +47,42 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+/* ---- highlight the words the user typed ---- */
+
+const STOP = new Set("a an the and or of in for with to on at by from that this is are was were has have as it its".split(" "));
+
+function termsOf(q) {
+  const seen = new Set();
+  return String(q || "").toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 1 && !STOP.has(t) && !seen.has(t) && seen.add(t));
+}
+
+const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function hlAll(text, terms) {
+  let out = esc(text);
+  if (!terms.length) return out;
+  const re = new RegExp("\\b(" + terms.map(escRe).join("|") + ")\\b", "gi");
+  return out.replace(re, '<mark class="hl">$1</mark>');
+}
+
+function snippet(text, terms, len) {
+  len = len || 260;
+  if (text.length <= len) return hlAll(text, terms);
+  let pos = -1;
+  const lower = text.toLowerCase();
+  for (const t of terms) {
+    const i = lower.indexOf(t);
+    if (i !== -1) { pos = i; break; }
+  }
+  if (pos < 0) return hlAll(text.slice(0, len), terms) + "…";
+  const start = Math.max(0, pos - 60);
+  const head = start > 0 ? "…" : "";
+  return head + hlAll(text.slice(start, start + len), terms) + "…";
+}
+
 function badge(v) {
   return `<span class="badge ${esc(v)}">${esc(v)}</span>`;
 }
@@ -59,13 +95,12 @@ function renderTrace(steps) {
   );
 }
 
-function renderHits(rows, showText) {
+function renderHits(rows, showText, terms) {
   return rows.map((h) => {
-    const width = h.score ? (h.score * 100).toFixed(1) : "";
     const meta = `${h.rank}. ${h.score.toFixed(4)} [${esc(h.chunk_id)}] doc=${esc(h.parent_doc)}`;
     return `<div class="hit">
       <div class="head"><span class="score">${meta}</span> · <span class="title">${esc(h.title)}</span></div>
-      ${showText ? `<pre>${esc(h.text)}</pre>` : ""}
+      ${showText ? `<pre>${snippet(h.text, terms || [])}</pre>` : ""}
     </div>`;
   }).join("");
 }
@@ -86,6 +121,7 @@ function componentBar(r) {
 /* ---- per-tab renderers ---- */
 
 function renderAsk(d) {
+  const qterms = termsOf(d.query);
   const counts = Object.entries(d.verdicts).map(([v, n]) => badge(v) + " x" + n).join(" ");
   const trace = d.trace
     ? `<div class="trace-step"><b>query analysis</b> <span>terms: ${d.trace.query_terms.join(", ")}</span>${d.trace.eliminated.length ? " — eliminated low-idf: " + esc(d.trace.eliminated.join(", ")) : ""}</div>`
@@ -122,20 +158,22 @@ function renderAsk(d) {
     ${answers}
     ${verif}
     <button class="chip show-retrieved">show ${d.retrieved.length} retrieved chunks</button>
-    <div class="hidden retrieved-box"><h4>retrieved evidence chunks</h4>${renderHits(d.retrieved, true)}</div>
+    <div class="hidden retrieved-box"><h4>retrieved evidence chunks</h4>${renderHits(d.retrieved, true, qterms)}</div>
   </div>`;
 }
 
 function renderSearch(d) {
+  const qterms = termsOf(d.query);
   const trace = d.trace && d.trace.query_terms.length
     ? `<div class="trace-step"><b>query analysis</b> <span>terms: ${d.trace.query_terms.join(", ")} · candidates ${d.trace.candidates}${d.trace.eliminated.length ? " · eliminated: " + esc(d.trace.eliminated.join(", ")) : ""}</span></div>`
     : "";
   const rows = d.hits.map((h) => `<div class="hit">
       <div class="head"><span class="score">${h.rank}. ${h.score.toFixed(4)}</span> [${esc(h.chunk_id)}] doc=${esc(h.parent_doc)}
         · <span class="title">${esc(h.title)}</span></div>
+      <pre>${snippet(h.text, qterms)}</pre>
       ${componentBar(h)}
     </div>`).join("");
-  return `<div class="card"><h3>Top-${d.hits.length} hits</h3>${trace}${rows || "<p>(no hits)</p>"}</div>`;
+  return `<div class="card"><h3>Top-${d.hits.length} hits · <span class="hit-note">yellow = your words</span></h3>${trace}${rows || "<p>(no hits)</p>"}</div>`;
 }
 
 function renderBool(d) {
@@ -159,10 +197,11 @@ function renderTerm(d) {
 }
 
 function renderVerify(d) {
+  const qt = termsOf(d.claim);
   const rows = d.rows.map((r) => `<tr>
       <td class="num">${r.rank}</td>
       <td>[${esc(r.chunk_id)}]</td>
-      <td>${esc(r.title)}</td>
+      <td>${esc(r.title)}<br><span class="snippet">${snippet(r.text, qt, 140)}</span></td>
       <td class="num">${r.cosine.toFixed(4)}</td>
       <td class="num">${r.novelty_penalty.toFixed(3)}</td>
       <td class="num">${r.support.toFixed(4)}</td>
