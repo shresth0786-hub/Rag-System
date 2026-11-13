@@ -51,6 +51,7 @@ def search(
         stemming=index.stemming,
         remove_stopwords=index.remove_stopwords,
         keep_negators=index.keep_negators,
+        finance_mode=bool(getattr(index, "finance_mode", False)),
     )
     trace = RetrievalTrace()
     trace.method = method

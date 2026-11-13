@@ -34,10 +34,11 @@ class DocEntry:
 
 
 class InvertedIndex:
-    def __init__(self, stemming=True, remove_stopwords=True, zone_weight=2.0, keep_negators=True):
+    def __init__(self, stemming=True, remove_stopwords=True, zone_weight=2.0, keep_negators=True, finance_mode: bool = False):
         self.stemming = stemming
         self.remove_stopwords = remove_stopwords
         self.keep_negators = keep_negators
+        self.finance_mode = finance_mode
         self.zone_weight = zone_weight
         self.postings = {}
         self.docs = {}
@@ -54,6 +55,7 @@ class InvertedIndex:
             stemming=self.stemming,
             remove_stopwords=self.remove_stopwords,
             keep_negators=self.keep_negators,
+            finance_mode=self.finance_mode,
         )
 
     def add_document(self, doc_id, title, text, meta=None):

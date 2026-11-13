@@ -10,7 +10,13 @@ def _terms(text, index):
         stemming=index.stemming,
         remove_stopwords=index.remove_stopwords,
         keep_negators=index.keep_negators,
+        finance_mode=bool(getattr(index, "finance_mode", False)),
     )
+
+
+# Finance numeric token detection for heavier penalty on hallucinated numbers
+import re as _re
+_NUM_RE = _re.compile(r"^\$?\d[\d,\.]*[BMKmM%]?$")
 
 
 def find_posting(plist, doc_id):
@@ -31,6 +37,7 @@ def doc_cosine(index, terms, doc_id):
 
 
 def novelty_penalty(index, terms, doc_id):
+    finance = bool(getattr(index, "finance_mode", False))
     idf_total = 0.0
     novel_idf = 0.0
     novel = []
@@ -38,11 +45,13 @@ def novelty_penalty(index, terms, doc_id):
         idf = index.idf(t)
         if idf <= 0:
             continue
-        idf_total += idf
+        # finance: weight numeric hallucinated tokens 1.5x (harder penalty for invented numbers)
+        w = 1.5 if (finance and _NUM_RE.match(t)) else 1.0
+        idf_total += idf * w
         p = find_posting(index.postings.get(t, ()), doc_id)
         if p is None:
             novel.append(t)
-            novel_idf += idf
+            novel_idf += idf * w
     if idf_total <= 0:
         return [], 0.0
     return sorted(novel), novel_idf / idf_total

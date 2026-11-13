@@ -12,6 +12,7 @@ def _terms(text, index):
         stemming=index.stemming,
         remove_stopwords=index.remove_stopwords,
         keep_negators=index.keep_negators,
+        finance_mode=bool(getattr(index, "finance_mode", False)),
     )
 
 
@@ -64,18 +65,32 @@ def extractive_answer(index, retrieved, query, max_sentences=3, mmr_lambda=0.7):
     return selected
 
 
+FINANCE_SYSTEM_PROMPT_EXTRA = (
+    " You are a financial assistant. Never extrapolate numbers beyond the sources."
+    " If the claim involves revenue, profit, margins or guidance, quote exact figures"
+    " with citations. Always note that filing excerpts may be incomplete and this"
+    " is not financial advice."
+)
+
 def build_prompt(query, retrieved, index):
     sources = []
     for rank, r in enumerate(retrieved, 1):
         doc = index.docs[r.doc_id]
-        sources.append(f"[{rank}] {doc.title}\n{doc.text}")
-    return (
+        meta = doc.meta
+        header = f"[{rank}] {doc.title}"
+        if meta.get("ticker"):
+            header += f" ({meta.get('ticker')} {meta.get('filing_type','')} {meta.get('period','')})"
+        sources.append(f"{header}\n{doc.text}")
+    finance = bool(getattr(index, "finance_mode", False))
+    base = (
         "You are a retrieval-augmented assistant. Answer the query using ONLY the "
         "numbered sources below. After every sentence, add citations like [1] or "
         "[2][3] pointing to the sources that support that sentence. If the sources "
         "do not contain the answer, say that the sources do not support an answer."
-        "\n\nSources:\n" + "\n\n".join(sources) + f"\n\nQuery: {query}\n\nAnswer:"
     )
+    if finance:
+        base += FINANCE_SYSTEM_PROMPT_EXTRA
+    return base + "\n\nSources:\n" + "\n\n".join(sources) + f"\n\nQuery: {query}\n\nAnswer:"
 
 
 def llm_answer(index, retrieved, query, model=None, temperature=0.0, max_tokens=400):

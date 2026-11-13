@@ -12,13 +12,13 @@
       <div class="logo" aria-hidden="true">V</div>
       <div>
         <h1>VeriRAG</h1>
-        <p class="tagline">retrieval-augmented generation with verified citations</p>
+        <p class="tagline">retrieval-augmented generation with verified citations — <span id="tagline-mode">SciFact + Finance</span></p>
       </div>
     </div>
     <div class="head-right">
       <div id="stats" class="stats" title="live index statistics">
         <span id="stat-chunks">—</span> chunks · <span id="stat-terms">—</span> terms ·
-        <span id="stat-docs">—</span> docs
+        <span id="stat-docs">—</span> docs · <span id="stat-mode">—</span>
       </div>
       <button id="engine-toggle" class="ghost">Inspect engine</button>
     </div>
@@ -32,8 +32,10 @@
         <span>try asking</span>
         <button class="chip" data-ask="metformin reduces mortality in type 2 diabetes patients">metformin &amp; mortality</button>
         <button class="chip" data-ask="antibiotic resistance in gram-negative bacteria">antibiotic resistance</button>
-        <button class="chip" data-ask="probiotics prevent antibiotic-associated diarrhea">do probiotics prevent…?</button>
+        <button class="chip" data-ask="What was Apple revenue in Q3 FY2024 and guidance for Q4?">AAPL Q3 revenue + guidance</button>
+        <button class="chip" data-ask="Did Microsoft Azure grow 30% in Q4 FY2024?">MSFT Azure 30%</button>
         <button class="chip" data-ask="is there evidence that vitamin D reduces respiratory infections">vitamin D &amp; infections</button>
+        <button class="chip" data-ask="probiotics prevent antibiotic-associated diarrhea">do probiotics prevent…?</button>
       </div>
     </section>
 
@@ -56,10 +58,12 @@
       </div>
       <div id="panel-bool" class="panel">
         <p class="hint">Boolean / phrase / zone queries with a live query-processor trace
-          (df-ordered AND, skip-pointer intersection, positional phrase check).</p>
+          (df-ordered AND, skip-pointer intersection, positional phrase check). Finance filters: <code>ticker:AAPL</code>, <code>filing:10-K</code>, <code>period:2024-Q3</code>.</p>
         <div class="examples"><span>examples:</span>
           <button class="chip" data-engine="bool" data-value="&quot;antibiotic resistance&quot; AND bacteria">&quot;antibiotic resistance&quot; AND bacteria</button>
           <button class="chip" data-engine="bool" data-value="title:CRISPR AND NOT review">title:CRISPR AND NOT review</button>
+          <button class="chip" data-engine="bool" data-value="ticker:AAPL AND revenue">ticker:AAPL AND revenue</button>
+          <button class="chip" data-engine="bool" data-value="ticker:MSFT AND filing:10-K">ticker:MSFT AND filing:10-K</button>
         </div>
       </div>
       <div id="panel-term" class="panel">

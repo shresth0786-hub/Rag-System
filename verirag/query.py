@@ -6,7 +6,8 @@ from .text import stem as stem_term
 from .text import tokenize
 
 TOKEN_RE = re.compile(r'"[^"]*"|\(|\)|\S+')
-FIELD_RE = re.compile(r"^(title|body|text):(.*)$", re.IGNORECASE)
+FIELD_RE = re.compile(r"^(title|body|text|ticker|filing|filing_type|period|company):(.*)$", re.IGNORECASE)
+# finance meta fields are handled via doc.meta filtering, not inverted index zones
 
 
 class QueryNode:
@@ -129,14 +130,49 @@ class BooleanTrace:
 
 
 def _analyze_terms(text, index):
+    finance = bool(getattr(index, "finance_mode", False))
     toks = tokenize(
         text,
         remove_stopwords=index.remove_stopwords,
         keep_negators=index.keep_negators,
+        finance_mode=finance,
     )
     if index.stemming:
-        toks = [stem_term(t) for t in toks]
+        # respect finance token protection
+        if finance:
+            from .text import is_finance_token as _is_fin
+            out = []
+            for t in toks:
+                if t.startswith("$") or _is_fin(t) or any(c.isdigit() for c in t):
+                    out.append(t)
+                else:
+                    out.append(stem_term(t))
+            toks = out
+        else:
+            toks = [stem_term(t) for t in toks]
     return toks
+
+
+def _finance_meta_docids(index, field: str, value: str) -> list[str]:
+    """Filter docs by finance meta field (ticker/filing/period/company). Case-insensitive exact match."""
+    field = field.lower()
+    # normalize field aliases
+    if field == "filing":
+        field = "filing_type"
+    val = value.strip().casefold()
+    # strip quotes
+    if val.startswith('"') and val.endswith('"') and len(val) >= 2:
+        val = val[1:-1].casefold()
+    out = []
+    for doc_id, entry in index.docs.items():
+        meta_val = entry.meta.get(field)
+        if meta_val is None:
+            continue
+        if str(meta_val).casefold() == val:
+            out.append(doc_id)
+        elif field == "ticker" and str(meta_val).casefold() == val.lstrip("$"):
+            out.append(doc_id)
+    return sorted(out)
 
 
 def intersect(a, b, trace=None):
@@ -276,7 +312,16 @@ def evaluate(node, index, trace=None, universe=None):
             trace.add(f'phrase "{node.value}"', len(result), f"terms={terms}")
         return result
     if node.kind == "zone":
-        zone = node.value
+        zone = node.value.lower()
+        # finance meta filters are doc.meta based, not positional
+        if zone in ("ticker", "filing", "filing_type", "period", "company"):
+            child = node.children[0]
+            raw = child.value if hasattr(child, "value") and child.value else ""
+            # try phrase as quoted value, else term
+            result = _finance_meta_docids(index, zone, raw)
+            if trace is not None:
+                trace.add(f"filter[{zone}:{raw}]", len(result), "meta field")
+            return result
         child = node.children[0]
         if child.kind == "term":
             terms = _analyze_terms(child.value, index)

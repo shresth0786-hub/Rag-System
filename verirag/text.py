@@ -22,32 +22,71 @@ STOPWORDS = frozenset(
 
 NEGATORS = frozenset({"not", "no", "nor", "neither", "never", "none", "without", "against"})
 
+# Finance: keep $, %, and / inside tokens like $12.4B, 10-K, Q3. Default normalize strips them.
 _PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
 
+# Finance-aware helpers
+_FINANCE_TICKER_RE = re.compile(r"^\$?[A-Z]{1,5}$")
+_FINANCE_NUM_RE = re.compile(r"^\$?\d[\d,\.]*[BMK%]?$", re.IGNORECASE)
+_FINANCE_PERIOD_RE = re.compile(r"^(Q[1-4]|FY\d{2,4}|H1|H2)$", re.IGNORECASE)
+_FINANCE_FILING_RE = re.compile(r"^\d{1,2}-K$|^\d{1,2}-Q$", re.IGNORECASE)
 
-def normalize(text):
+# Finance stopword overlay: in finance mode we keep directional words (up/down/over/under)
+FINANCE_KEEP = frozenset({"up", "down", "over", "under", "above", "below", "own", "will", "out", "against"})
+
+# regex to protect finance tokens before punctuation stripping
+_FINANCE_PROTECT_RE = re.compile(
+    r"(\$?\d[\d,\.]*\s*[%BMK]?)|(\b\d{1,2}-[KQ]\b)|(\bQ[1-4]\b)|(\bFY\d{2,4}\b)|(\$[A-Z]{1,5}\b)",
+    re.IGNORECASE,
+)
+
+
+def normalize(text, finance_mode: bool = False):
     text = unicodedata.normalize("NFKD", text)
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     text = text.casefold()
-    text = _PUNCT_RE.sub(" ", text)
+    if finance_mode:
+        # protect finance tokens by replacing punctuation inside them with placeholder
+        # then strip remaining punct, then restore
+        # simpler: keep $ % - / inside, strip other punct
+        text = re.sub(r"[^\w\s\$\%\-\/]", " ", text)
+        # keep forms like 10-K as single token, $12.4b as single
+        # dots stay as separator except inside numbers - we keep them
+        # replace commas inside numbers temporarily
+    else:
+        text = _PUNCT_RE.sub(" ", text)
     text = _WS_RE.sub(" ", text).strip()
     return text
 
 
-def tokenize(text, remove_stopwords=True, keep_negators=True):
-    norm = normalize(text)
+def tokenize(text, remove_stopwords=True, keep_negators=True, finance_mode: bool = False):
+    norm = normalize(text, finance_mode=finance_mode)
     if not norm:
         return []
     terms = []
     for tok in norm.split(" "):
         if not tok:
             continue
+        # in finance mode keep directional terms
+        if finance_mode and tok in FINANCE_KEEP:
+            terms.append(tok)
+            continue
         if remove_stopwords and tok in STOPWORDS:
             if not (keep_negators and tok in NEGATORS):
                 continue
         terms.append(tok)
     return terms
+
+
+def is_finance_token(tok: str) -> bool:
+    """Return True if token looks like a finance-specific numeric/ticker/period token."""
+    return bool(
+        _FINANCE_NUM_RE.match(tok)
+        or _FINANCE_TICKER_RE.match(tok.upper())
+        or _FINANCE_PERIOD_RE.match(tok)
+        or _FINANCE_FILING_RE.match(tok)
+    )
 
 
 class PorterStemmer:
@@ -223,8 +262,17 @@ def stem(term):
     return _STEMMER.stem(term)
 
 
-def analyze(text, stemming=True, remove_stopwords=True, keep_negators=True):
-    terms = tokenize(text, remove_stopwords=remove_stopwords, keep_negators=keep_negators)
+def analyze(text, stemming=True, remove_stopwords=True, keep_negators=True, finance_mode: bool = False):
+    terms = tokenize(text, remove_stopwords=remove_stopwords, keep_negators=keep_negators, finance_mode=finance_mode)
     if stemming:
-        terms = [stem(t) for t in terms]
+        # don't stem finance numeric/ticker tokens or $ prefixed
+        out = []
+        for t in terms:
+            if finance_mode and (t.startswith("$") or is_finance_token(t) or any(c.isdigit() for c in t)):
+                out.append(t)
+            else:
+                out.append(stem(t))
+        terms = out
+    else:
+        terms = terms
     return terms

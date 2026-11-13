@@ -1,0 +1,7 @@
+{
+    "python.defaultInterpreterPath": "python",
+    "python.terminal.activateEnvironment": true,
+    "files.associations": {
+        "*.jsonl": "json"
+    }
+}

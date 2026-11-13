@@ -1,0 +1,15 @@
+{"_id": "0", "text": "What was Apple revenue in Q3 FY2024 and what is guidance for Q4?", "metadata": {"FIN_001": [{"sentences": [0, 7], "label": "SUPPORT"}]}}
+{"_id": "1", "text": "Did Microsoft Azure grow 30% in Q4 FY2024?", "metadata": {"FIN_002": [{"sentences": [0], "label": "SUPPORT"}]}}
+{"_id": "2", "text": "Is Tesla automotive gross margin under pressure from price cuts?", "metadata": {"FIN_003": [{"sentences": [1], "label": "SUPPORT"}]}}
+{"_id": "3", "text": "What is JPMorgan CET1 ratio and is it above regulatory minimum?", "metadata": {"FIN_004": [{"sentences": [2], "label": "SUPPORT"}]}}
+{"_id": "4", "text": "NVIDIA data center revenue growth was driven by AI demand with 262% total revenue increase", "metadata": {"FIN_006": [{"sentences": [0], "label": "SUPPORT"}]}}
+{"_id": "5", "text": "Berkshire Hathaway cash pile reached a record $189B in Q1 2024", "metadata": {"FIN_007": [{"sentences": [1], "label": "SUPPORT"}]}}
+{"_id": "6", "text": "Google Cloud operating margin was 9% in Q3 2024", "metadata": {"FIN_008": [{"sentences": [2], "label": "SUPPORT"}]}}
+{"_id": "7", "text": "Does JPMorgan have $175B commercial real estate exposure?", "metadata": {"FIN_004": [{"sentences": [4], "label": "SUPPORT"}]}}
+{"_id": "8", "text": "Tesla lithium cost pressure could impact 2025 COGS by $800M", "metadata": {"FIN_017": [{"sentences": [2], "label": "SUPPORT"}]}}
+{"_id": "9", "text": "Goldman Sachs passed Fed stress test with CET1 well above minimum", "metadata": {"FIN_020": [{"sentences": [0, 1], "label": "SUPPORT"}]}}
+{"_id": "10", "text": "Apple paid $50B dividend in Q3 2024", "metadata": {}}
+{"_id": "11", "text": "Microsoft acquired Tesla for $60B", "metadata": {}}
+{"_id": "12", "text": "NVIDIA export controls could cut $7-10B revenue if licenses denied", "metadata": {"FIN_019": [{"sentences": [1], "label": "SUPPORT"}]}}
+{"_id": "13", "text": "Bank of America has $98B unrealized losses on HTM securities", "metadata": {"FIN_012": [{"sentences": [4], "label": "SUPPORT"}]}}
+{"_id": "14", "text": "Netflix ad-tier members reached 15 million in Q3 2023", "metadata": {"FIN_013": [{"sentences": [1], "label": "SUPPORT"}]}}

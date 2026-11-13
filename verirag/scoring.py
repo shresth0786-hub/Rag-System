@@ -6,9 +6,9 @@ from .text import analyze
 PROXIMITY_WINDOW = 30
 
 
-def analyze_query(raw_query, stemming=True, remove_stopwords=True, keep_negators=True):
+def analyze_query(raw_query, stemming=True, remove_stopwords=True, keep_negators=True, finance_mode: bool = False):
     return analyze(
-        raw_query, stemming=stemming, remove_stopwords=remove_stopwords, keep_negators=keep_negators
+        raw_query, stemming=stemming, remove_stopwords=remove_stopwords, keep_negators=keep_negators, finance_mode=finance_mode
     )
 
 

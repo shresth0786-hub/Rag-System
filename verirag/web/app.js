@@ -93,16 +93,19 @@ function buildEvidence(d) {
   const qterms = termsOf(d.query);
   const chunks = d.retrieved.map((h, idx) => {
     const cited = d.verification.some((r, i) => (r.citations || [])[0] === h.rank);
+    const meta = h.meta || {};
+    const tag = [meta.ticker, meta.filing_type, meta.period].filter(Boolean).join(" · ");
     return `<div class="chunk" id="chunk-${messageSeq}-${idx}">
-      <div class="chunk-head"><b>[${h.rank}]</b> <span class="t">${esc(h.title)}</span></div>
-      <div class="chunk-meta">${esc(h.parent_doc)} · score ${h.score.toFixed(4)} · ${esc(h.chunk_id)}</div>
+      <div class="chunk-head"><b>[${h.rank}]</b> <span class="t">${esc(h.title)}</span>${tag ? ` <span class="pill">${esc(tag)}</span>` : ""}</div>
+      <div class="chunk-meta">${esc(h.parent_doc)} · score ${h.score.toFixed(4)} · ${esc(h.chunk_id)}${tag ? " · "+esc(tag):""}</div>
       <details><summary>${cited ? "cited by the answer — " : ""}read the passage</summary>
         <pre>${snippet(h.text, qterms)}</pre>
       </details>
     </div>`;
   }).join("");
-  return `<div class="fold"><summary>evidence — ${d.retrieved.length} passages retrieved</summary>
-    <div class="fold-body">${chunks}</div></div>`;
+  const disc = d.disclaimer ? `<div class="status" style="margin-top:8px;font-size:12px;">⚠️ ${esc(d.disclaimer)}</div>` : "";
+  return `<div class="fold"><summary>evidence — ${d.retrieved.length} passages retrieved${d.finance_mode ? " · finance mode" : ""}</summary>
+    <div class="fold-body">${chunks}${disc}</div></div>`;
 }
 
 function buildTraceFold(d) {
@@ -138,11 +141,13 @@ function addAssistant(d) {
     }).join(" ") : ""}</span>
     <span>· ${d.elapsed_ms} ms</span></div>`;
 
+  const disc = d.disclaimer ? `<div class="status" style="margin:8px 0;font-size:12px;background:#fffbe6;padding:8px;border-radius:6px;">⚠️ ${esc(d.disclaimer)}</div>` : "";
   const el = document.createElement("div");
   el.className = "msg assistant";
   el.innerHTML = `<div class="avatar">V</div><div class="body">
       <div class="query-echo"><span>answer for</span>“${esc(d.query)}”</div>
       <div class="answer">${sentences}</div>
+      ${disc}
       ${strip}
       ${buildEvidence(d)}
       ${buildTraceFold(d)}
@@ -369,10 +374,10 @@ $("input").addEventListener("input", () => autoGrow($("input")));
 
 (async function init() {
   const hero = `<div class="msg assistant"><div class="avatar">V</div><div class="body">
-    <p><strong>Ask a biomedical question.</strong> VeriRAG reads 5,183 papers from BEIR SciFact,
-    generates an answer sentence by sentence, and verify each sentence against the passage it cites
-    before showing it — supported citations get a green dot, doubted ones amber or red.</p>
-    <p>Type a question below, or pick an example. The technical machinery — inverted index, Boolean
+    <p><strong>Ask a biomedical or finance question.</strong> VeriRAG reads your corpus (SciFact 5,183 papers or Finance filings),
+    generates an answer sentence by sentence, and verifies each sentence against the passage it cites
+    before showing it — supported citations get a green dot, doubted ones amber or red. Finance mode adds ticker/filing filters and a non-advice disclaimer.</p>
+    <p>Type a question below, or pick an example. Try <em>ticker:AAPL AND revenue</em> in Inspect engine. The technical machinery — inverted index, Boolean
     queries, retrieval traces — stays under <em>Inspect engine</em>.</p></div></div>`;
   chat.appendChild(heroToEl(hero));
   scrollChat();
@@ -382,6 +387,8 @@ $("input").addEventListener("input", () => autoGrow($("input")));
     $("stat-chunks").textContent = s.n_chunks;
     $("stat-terms").textContent = s.n_terms;
     $("stat-docs").textContent = s.n_docs;
+    if ($("stat-mode")) $("stat-mode").textContent = s.finance_mode ? "finance" : "scifact";
+    if ($("tagline-mode")) $("tagline-mode").textContent = s.finance_mode ? "Finance · filing-aware" : "SciFact + Finance";
   } catch (e) { /* optional */ }
 })();
 

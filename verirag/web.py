@@ -57,6 +57,7 @@ class VeriRAGApp:
             "avg_chunk_tokens": meta.get("avg_chunk_tokens") if meta else "?",
             "strategy": meta.get("strategy") if meta else "?",
             "stemming": idx.stemming,
+            "finance_mode": bool(getattr(idx, "finance_mode", False) or (meta.get("finance_mode") if meta else False)),
             "index_path": payload.get("index", "output/index.pkl"),
         }
 
@@ -106,6 +107,7 @@ class VeriRAGApp:
                     "g": round(r.g, 4),
                     "title": doc.title,
                     "text": doc.text,
+                    "meta": {k: doc.meta.get(k) for k in ("ticker","filing_type","period","company","source_url") if doc.meta.get(k)},
                 }
             )
         return {
@@ -153,6 +155,7 @@ class VeriRAGApp:
                     "parent_doc": doc.meta.get("doc_id"),
                     "title": doc.title,
                     "text": doc.text,
+                    "meta": {k: doc.meta.get(k) for k in ("ticker","filing_type","period","company") if doc.meta.get(k)},
                 }
             )
         return {
@@ -169,6 +172,7 @@ class VeriRAGApp:
             stemming=self.index.stemming,
             remove_stopwords=self.index.remove_stopwords,
             keep_negators=self.index.keep_negators,
+            finance_mode=bool(getattr(self.index, "finance_mode", False)),
         )
         ranked = search(
             self.index, raw, k=int(payload.get("k", 5)), explain=False

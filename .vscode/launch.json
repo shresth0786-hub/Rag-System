@@ -1,0 +1,104 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "VeriRAG: Build Finance Index",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["build", "--corpus", "data/finance/corpus.jsonl", "--out", "output/index_finance.pkl", "--strategy", "finance"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Build SciFact Index",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["build", "--corpus", "data/scifact/corpus.jsonl", "--out", "output/index.pkl", "--strategy", "sentence"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Web (Finance)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["web", "--index", "output/index_finance.pkl", "--no-open-code"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Web (SciFact)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["web", "--index", "output/index.pkl", "--no-open-code"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Ask (Finance)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["ask", "What was Apple revenue in Q3 FY2024 and guidance for Q4?", "--index", "output/index_finance.pkl", "--json"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Ask (SciFact)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["ask", "metformin reduces mortality in type 2 diabetes patients", "--index", "output/index.pkl", "--explain"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Search (Finance)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["search", "Apple revenue Q3 2024", "--index", "output/index_finance.pkl", "--explain"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Bool ticker filter",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["bool", "ticker:AAPL AND revenue", "--index", "output/index_finance.pkl"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Verify (Finance)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["verify", "Apple Q3 FY2024 revenue was $81.8 billion", "--index", "output/index_finance.pkl"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: Eval Finance (toy)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["eval", "--corpus", "data/finance/corpus.jsonl", "--queries", "data/finance/queries.jsonl", "--qrels", "data/finance/qrels/test.tsv"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "VeriRAG: REPL",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "verirag",
+            "args": ["repl", "--index", "output/index_finance.pkl"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Install deps",
+            "type": "shell",
+            "command": "pip install -r requirements.txt",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Finance Index",
+            "type": "shell",
+            "command": "python -m verirag build --corpus data/finance/corpus.jsonl --out output/index_finance.pkl --strategy finance",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Web (Finance)",
+            "type": "shell",
+            "command": "python -m verirag web --index output/index_finance.pkl",
+            "problemMatcher": []
+        }
+    ]
+}

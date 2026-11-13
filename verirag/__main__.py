@@ -52,8 +52,18 @@ def cmd_build(args):
     params = {}
     if args.strategy == "fixed":
         params = {"size": args.chunk_size, "overlap": args.chunk_overlap}
-    elif args.strategy == "sentence":
+    elif args.strategy in ("sentence", "finance"):
         params = {"sentences": args.chunk_sentences, "step": args.chunk_step}
+    # finance_mode: explicit flag overrides auto-detect; None means auto
+    finance_flag = getattr(args, "finance_mode", None)
+    if finance_flag is False:
+        finance_flag = False
+    elif finance_flag is True:
+        finance_flag = True
+    else:
+        finance_flag = None
+        if args.strategy == "finance":
+            finance_flag = True
     index, stats = build_from_corpus(
         args.corpus,
         strategy=args.strategy,
@@ -62,6 +72,7 @@ def cmd_build(args):
         zone_weight=args.zone_weight,
         champion_size=args.champions,
         out_path=args.out,
+        finance_mode=finance_flag,
     )
     print(json.dumps(stats, indent=2))
     print(f"saved index -> {args.out}")
@@ -69,18 +80,22 @@ def cmd_build(args):
 
 def cmd_search(args):
     index = _load(args)
-    ranked, trace = search(
-        index,
-        args.query,
-        k=args.k,
-        method=args.method,
-        use_champions=args.champions,
-        eliminate_threshold=args.eliminate,
-        proximity_weight=args.proximity,
-        proximity_window=args.prox_window,
-        static_weight=args.static,
-        explain=True,
-    )
+    try:
+        ranked, trace = search(
+            index,
+            args.query,
+            k=args.k,
+            method=args.method,
+            use_champions=args.champions,
+            eliminate_threshold=args.eliminate,
+            proximity_weight=args.proximity,
+            proximity_window=args.prox_window,
+            static_weight=args.static,
+            explain=True,
+        )
+    except Exception as exc:
+        print(f"search failed: {exc}", file=sys.stderr)
+        sys.exit(1)
     print(f"query: {args.query}")
     print(
         f"terms: {trace.query_terms}  candidates={trace.candidates}  "
@@ -140,9 +155,12 @@ def cmd_bool(args):
 def _print_answer(result, show_text=True):
     print(f"\n-- retrieved chunks (k={len(result['retrieved'])}) --")
     for r in result["retrieved"]:
+        meta_tag = ""
+        if r.get("meta"):
+            meta_tag = " " + " ".join(f"{k}={v}" for k,v in r["meta"].items())
         print(
             f"  [{r['rank']}] {r['score']:.4f}  {r['chunk_id']:<12} "
-            f"doc={r['parent_doc']:<9} {r['title'][:60]}"
+            f"doc={r['parent_doc']:<9} {r['title'][:60]}{meta_tag}"
         )
         if show_text:
             print(f"      {r['text'][:160].replace(chr(10), ' ')}...")
@@ -152,6 +170,8 @@ def _print_answer(result, show_text=True):
         print(f"  {i}. {s['text']} {cites}   (rel={s['relevance']})")
     if not result["answer"]:
         print("  (no answer sentences produced)")
+    if result.get("disclaimer"):
+        print(f"\n  Disclaimer: {result['disclaimer']}")
     print("\n-- citation verification --")
     print(
         f"  {'#':>2} {'support':>7} {'cos':>6} {'novel':>6} {'verdict':<26} claim"
@@ -169,6 +189,8 @@ def _print_answer(result, show_text=True):
                 f"({row['best_support']:.4f}) than cited rank {row['citations'][0]}"
             )
     print(f"\nverdicts: {result['verdicts']}  |  total {result['elapsed_ms']} ms")
+    if result.get("finance_mode"):
+        print("  finance mode: ON (numeric-aware verification active)")
 
 
 def cmd_ask(args):
@@ -215,6 +237,7 @@ def cmd_verify(args):
         stemming=index.stemming,
         remove_stopwords=index.remove_stopwords,
         keep_negators=index.keep_negators,
+        finance_mode=bool(getattr(index, "finance_mode", False)),
     )
     ranked = search(index, args.claim, k=args.k, explain=False)
     print(f"claim: {args.claim}")
@@ -348,7 +371,8 @@ def cmd_repl(args):
         elif mode == "verify":
             terms = _analyze(text, stemming=index.stemming,
                              remove_stopwords=index.remove_stopwords,
-                             keep_negators=index.keep_negators)
+                             keep_negators=index.keep_negators,
+                             finance_mode=bool(getattr(index, "finance_mode", False)))
             ranked = _search(index, text, k=k, explain=False)
             print(f"\nclaim: {text}")
             print("terms: %s" % terms)
@@ -413,7 +437,7 @@ def build_parser():
     b = sub.add_parser("build", help="chunk a corpus and build the inverted index")
     b.add_argument("--corpus", default="data/scifact/corpus.jsonl")
     b.add_argument("--out", default="output/index.pkl")
-    b.add_argument("--strategy", choices=["whole", "fixed", "sentence"], default="sentence")
+    b.add_argument("--strategy", choices=["whole", "fixed", "sentence", "finance"], default="sentence")
     b.add_argument("--chunk-size", type=int, default=120)
     b.add_argument("--chunk-overlap", type=int, default=30)
     b.add_argument("--chunk-sentences", type=int, default=3)
@@ -421,7 +445,29 @@ def build_parser():
     b.add_argument("--zone-weight", type=float, default=2.0)
     b.add_argument("--champions", type=int, default=0)
     b.add_argument("--no-stemming", action="store_true")
+    b.add_argument("--finance-mode", dest="finance_mode", action="store_true", default=None, help="force finance tokenizer (keeps $ % 10-K etc.)")
+    b.add_argument("--no-finance-mode", dest="finance_mode", action="store_false", help="force SciFact/non-finance tokenizer")
     b.set_defaults(func=cmd_build)
+
+    ing = sub.add_parser("ingest", help="finance ingestion: convert PDFs/CSVs/TXTs to corpus.jsonl")
+    ing.add_argument("--input", required=True, help="file or directory of PDFs/CSVs/TXTs")
+    ing.add_argument("--out", default="data/finance/corpus.jsonl")
+    ing.add_argument("--ticker", default=None)
+    ing.add_argument("--filing-type", default=None, dest="filing_type")
+    ing.add_argument("--period", default=None)
+    ing.add_argument("--company", default=None)
+    ing.add_argument("--source-url", default=None, dest="source_url")
+    ing.add_argument("--append", action="store_true")
+    def _ingest_func(a):
+        import subprocess as _sp, sys as _sys
+        _sp.check_call([_sys.executable, "scripts/ingest_finance.py", "--input", a.input, "--out", a.out]
+                       + (["--ticker", a.ticker] if a.ticker else [])
+                       + (["--filing-type", a.filing_type] if a.filing_type else [])
+                       + (["--period", a.period] if a.period else [])
+                       + (["--company", a.company] if a.company else [])
+                       + (["--source-url", a.source_url] if a.source_url else [])
+                       + (["--append"] if a.append else []))
+    ing.set_defaults(func=_ingest_func)
 
     s = sub.add_parser("search", help="ranked (vector-space) retrieval")
     s.add_argument("query")

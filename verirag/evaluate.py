@@ -130,8 +130,13 @@ def format_table(results, keys):
 def run_retrieval_eval(args):
     queries = load_queries(args.queries)
     qrels = load_qrels(args.qrels)
-    dev_qids, test_qids = split_qids(qrels, n_dev=100)
+    # finance tiny corpus: if <100 qrels, use 50/50 split fallback so test is non-empty
+    n_dev = 100 if len(qrels) > 100 else max(1, len(qrels)//2)
+    dev_qids, test_qids = split_qids(qrels, n_dev=n_dev)
     test_qids = [q for q in test_qids if q in queries]
+    if not test_qids:
+        # fallback: evaluate on dev when test empty (tiny corpora)
+        test_qids = [q for q in dev_qids if q in queries]
 
     print(f"queries: {len(qrels)} judged (dev={len(dev_qids)}, test={len(test_qids)})")
     plain = get_index("plain", args.corpus, args)
