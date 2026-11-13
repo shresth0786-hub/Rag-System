@@ -1,8 +1,11 @@
 import json
 import sys
 import time
+from pathlib import Path
 
-sys.path.insert(0, ".")
+# Robust to cwd: resolve project root (parent of scripts/) instead of relying on "."
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from verirag.index import InvertedIndex
 from verirag.query import BooleanTrace, run_boolean
@@ -10,7 +13,8 @@ from verirag.retrieve import search
 
 t0 = time.time()
 idx = InvertedIndex()
-for line in open("data/scifact/corpus.jsonl", encoding="utf-8"):
+corpus_path = PROJECT_ROOT / "data" / "scifact" / "corpus.jsonl"
+for line in open(corpus_path, encoding="utf-8"):
     d = json.loads(line)
     idx.add_document(d["_id"], d["title"], d["text"])
 idx.finalize(champion_size=50)
